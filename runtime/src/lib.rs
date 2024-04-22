@@ -1128,6 +1128,11 @@ impl pallet_proxy::Config for Runtime {
 	type AnnouncementDepositFactor = AnnouncementDepositFactor;
 }
 
+impl pallet_sudo::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type RuntimeCall = RuntimeCall;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
     pub enum Runtime where
@@ -1179,6 +1184,9 @@ construct_runtime!(
         Council: pallet_collective::<Instance1> = 62,
         Democracy: pallet_democracy = 63,
         Identity: pallet_identity = 64,
+
+        // Temporary.
+        Sudo: pallet_sudo = 255,
     }
 );
 

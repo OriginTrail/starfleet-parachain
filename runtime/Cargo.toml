@@ -25,6 +25,8 @@ scale-info = { version = "2.3.1", default-features = false, features = [
 ] }
 smallvec = "1.10.0"
 
+pallet-sudo = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.40" }
+
 # Substrate
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true, branch = "polkadot-v0.9.40" }
 frame-executive = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.40" }
@@ -119,6 +121,7 @@ std = [
 	"frame-support/std",
 	"frame-system-rpc-runtime-api/std",
 	"frame-system/std",
+	"pallet-sudo/std",
 	"pallet-assets/std",
 	"pallet-aura/std",
 	"pallet-authorship/std",
