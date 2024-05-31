@@ -4,15 +4,16 @@ use super::{
 };
 use frame_support::{
     match_types, parameter_types,
-    traits::{ConstU32, Contains, Everything, Nothing, PalletInfoAccess},
+    traits::{ConstU32, Contains, ContainsPair, Everything, Get, Nothing, PalletInfoAccess},
     weights::Weight,
 };
 use pallet_xcm::XcmPassthrough;
 use polkadot_parachain::primitives::Sibling;
+use sp_std::marker::PhantomData;
 use xcm::latest::prelude::*;
 use xcm_builder::{
     AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
-    CurrencyAdapter, EnsureXcmOrigin, FixedWeightBounds, IsConcrete, NativeAsset, ParentIsPreset,
+    Case, CurrencyAdapter, EnsureXcmOrigin, FixedWeightBounds, IsConcrete, NativeAsset, ParentIsPreset,
     RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
     SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
     UsingComponents, WithComputedOrigin,
@@ -161,6 +162,44 @@ impl Contains<RuntimeCall> for SafeCallFilter {
 	}
 }
 
+/// Matches foreign assets from a given origin.
+/// Foreign assets are assets bridged from other consensus systems. i.e parents > 1.
+pub struct IsForeignConcreteAssetFrom<Origin>(PhantomData<Origin>);
+impl<Origin> ContainsPair<MultiAsset, MultiLocation> for IsForeignConcreteAssetFrom<Origin>
+where
+    Origin: Get<MultiLocation>,
+{
+    fn contains(asset: &MultiAsset, origin: &MultiLocation) -> bool {
+        let loc = Origin::get();
+        &loc == origin
+            && matches!(
+                asset,
+                MultiAsset {
+                    id: Concrete(MultiLocation { parents: 2, .. }),
+                    fun: Fungible(_)
+                },
+            )
+    }
+}
+
+parameter_types! {
+    /// Location of Asset Hub
+    pub AssetHubLocation: MultiLocation = (Parent, Parachain(1000)).into();
+    pub RelayChainNativeAssetFromAssetHub: (MultiAssetFilter, MultiLocation) = (
+        (MultiAsset { id: Concrete(RelayLocation::get()), fun: Fungible(1)}).into(),
+        AssetHubLocation::get()
+    );
+}
+
+type Reserves = (
+    // Assets bridged from different consensus systems held in reserve on Asset Hub.
+    IsForeignConcreteAssetFrom<AssetHubLocation>,
+    // Relaychain (DOT) from Asset Hub
+    Case<RelayChainNativeAssetFromAssetHub>,
+    // Assets which the reserve is the same as the origin.
+    NativeAsset,
+);
+
 pub struct XcmConfig;
 impl xcm_executor::Config for XcmConfig {
     type RuntimeCall = RuntimeCall;
@@ -168,7 +207,7 @@ impl xcm_executor::Config for XcmConfig {
     // How to withdraw and deposit an asset.
     type AssetTransactor = LocalAssetTransactor;
     type OriginConverter = XcmOriginToTransactDispatchOrigin;
-    type IsReserve = NativeAsset;
+    type IsReserve = Reserves;
     type IsTeleporter = (); // Teleporting is disabled.
     type UniversalLocation = UniversalLocation;
     type Barrier = Barrier;
