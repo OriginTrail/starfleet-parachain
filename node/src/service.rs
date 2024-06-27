@@ -27,16 +27,13 @@ use sc_consensus::ImportQueue;
 use sc_executor::NativeElseWasmExecutor;
 use sc_network::NetworkBlock;
 use sc_network_sync::SyncingService;
-use sc_service::{BasePath, Configuration, PartialComponents, TFullBackend, TFullClient, TaskManager};
+use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryHandle, TelemetryWorker, TelemetryWorkerHandle};
 use sp_keystore::KeystorePtr;
 use substrate_prometheus_endpoint::Registry;
 use futures::StreamExt;
-use sc_cli::SubstrateCli;
 use sc_client_api::BlockchainEvents;
 use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
-
-use crate::cli::Cli;
 
 /// Native executor type.
 pub struct ParachainNativeExecutor;
@@ -70,14 +67,7 @@ pub fn open_frontier_backend<C>(
 where
     C: sp_blockchain::HeaderBackend<Block>,
 {
-    let config_dir = config
-		.base_path
-		.as_ref()
-		.map(|base_path| base_path.config_dir(config.chain_spec.id()))
-		.unwrap_or_else(|| {
-			BasePath::from_project("", "", &Cli::executable_name())
-				.config_dir(config.chain_spec.id())
-		});
+    let config_dir = config.base_path.config_dir(config.chain_spec.id());
     let path = config_dir.join("frontier").join("db");
 
     Ok(Arc::new(fc_db::kv::Backend::<Block>::new(
@@ -221,9 +211,12 @@ async fn start_node_impl(
 	let is_authority = parachain_config.role.is_authority();
 	let transaction_pool = params.transaction_pool.clone();
 	let import_queue_service = params.import_queue.service();
+	let net_config = sc_network::config::FullNetworkConfiguration::new(&parachain_config.network);
+
 	let (network, system_rpc_tx, tx_handler_controller, start_network, sync_service) =
 		build_network(BuildNetworkParams {
 			parachain_config: &parachain_config,
+			net_config,
 			client: client.clone(),
 			transaction_pool: transaction_pool.clone(),
 			para_id,
