@@ -14,7 +14,8 @@ use sc_client_api::{
 };
 pub use sc_rpc::{DenyUnsafe, SubscriptionTaskExecutor};
 use fc_rpc::{
-	EthBlockDataCacheTask, OverrideHandle, EthFilter, EthFilterApiServer,
+	EthBlockDataCacheTask, OverrideHandle, EthFilter, EthFilterApiServer, EthPubSub,
+    EthPubSubApiServer, Web3, Web3ApiServer, TxPool, TxPoolApiServer,
 };
 use sp_runtime::traits::BlakeTwo256;
 use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
@@ -46,7 +47,7 @@ pub struct FullDeps<C, P, A: ChainApi> {
 	/// Network service
 	pub network: Arc<NetworkService<Block, Hash>>,
 	/// Backend.
-	pub backend: Arc<fc_db::Backend<Block>>,
+	pub backend: Arc<dyn fc_db::BackendReader<Block> + Send + Sync>,
 	/// EthFilterApi pool.
     pub filter_pool: FilterPool,
 	/// Maximum fee history cache size.                                                                                    
@@ -62,7 +63,12 @@ pub struct FullDeps<C, P, A: ChainApi> {
 /// Instantiate all RPC extensions.
 pub fn create_full<C, P, BE, A>(
 	deps: FullDeps<C, P, A>,
-	_subscription_task_executor: SubscriptionTaskExecutor,
+	subscription_task_executor: SubscriptionTaskExecutor,
+	pubsub_notification_sinks: Arc<
+        fc_mapping_sync::EthereumBlockNotificationSinks<
+            fc_mapping_sync::EthereumBlockNotification<Block>,
+        >,
+    >,
 ) -> Result<RpcExtension, Box<dyn std::error::Error + Send + Sync>>
 where
 	BE: Backend<Block> + 'static,
@@ -105,7 +111,7 @@ where
         Eth::<_, _, _, fp_rpc::NoTransactionConverter, _, _, _>::new(
             client.clone(),
 			pool.clone(),
-            graph,
+            graph.clone(),
             no_tx_converter,
             sync.clone(),
             signers,
@@ -117,15 +123,18 @@ where
             fee_history_cache_limit,
 			// Allow 10x max allowed weight for non-transactional calls
 			10,
+			None
         ).into_rpc()
     )?;
 
 	let max_past_logs: u32 = 10_000;
     let max_stored_filters: usize = 500;
+	let tx_pool = TxPool::new(client.clone(), graph);
     module.merge(
         EthFilter::new(
             client.clone(),
             backend,
+			tx_pool.clone(),
             filter_pool,
             max_stored_filters,
             max_past_logs,
@@ -143,6 +152,22 @@ where
 		)
 		.into_rpc(),
 	)?;
+
+	module.merge(Web3::new(client.clone()).into_rpc())?;
+
+	module.merge(
+        EthPubSub::new(
+            pool,
+            client.clone(),
+            sync,
+            subscription_task_executor,
+            overrides,
+            pubsub_notification_sinks,
+        )
+        .into_rpc(),
+    )?;
+
+	module.merge(tx_pool.into_rpc())?;
 
 	Ok(module)
 }

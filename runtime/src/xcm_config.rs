@@ -17,6 +17,7 @@ use xcm_builder::{
     SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
     UsingComponents, WithComputedOrigin,
 };
+use frame_system::EnsureRoot;
 use xcm_executor::{traits::WithOriginFilter, XcmExecutor};
 
 parameter_types! {
@@ -232,7 +233,8 @@ impl pallet_xcm::Config for Runtime {
     type MaxLockers = ConstU32<8>;
     type WeightInfo = crate::weights::pallet_xcm::WeightInfo<Runtime>;
     #[cfg(feature = "runtime-benchmarks")]
-    type ReachableDest = ReachableDest;    
+    type ReachableDest = ReachableDest;
+    type AdminOrigin = EnsureRoot<AccountId>;
 }
 
 impl cumulus_pallet_xcm::Config for Runtime {

@@ -16,7 +16,7 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H160, H256, U256};
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys, DispatchResult,
     traits::{
-        AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT,
+        AccountIdConversion, IdentityLookup, BlakeTwo256, Block as BlockT,
         ConvertInto, DispatchInfoOf, Dispatchable, IdentifyAccount, 
         PostDispatchInfoOf, UniqueSaturatedInto, Verify,
     },
@@ -37,7 +37,7 @@ use frame_support::{
     traits::{
         AsEnsureOriginWithArg, Currency as PalletCurrency, EqualPrivilegeOnly, EitherOfDiverse, 
         Everything, FindAuthor, ReservableCurrency, Imbalance, InstanceFilter, OnUnbalanced, 
-        ConstU128, ConstU32, ConstU64, ConstU8, WithdrawReasons, 
+        ConstU128, ConstU32, ConstU64, ConstU8, WithdrawReasons, OnFinalize,
     },
     dispatch::DispatchClass,
     weights::{
@@ -99,7 +99,7 @@ pub type Hash = sp_core::H256;
 pub type BlockNumber = u32;
 
 /// The address format for describing accounts.
-pub type Address = MultiAddress<AccountId, ()>;
+pub type Address = AccountId;
 
 /// Block header type as expected by this runtime.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
@@ -355,7 +355,7 @@ impl frame_system::Config for Runtime {
     /// The aggregated dispatch type that is available for extrinsics.
     type RuntimeCall = RuntimeCall;
     /// The lookup mechanism to get account ID from whatever is passed in dispatchers.
-    type Lookup = AccountIdLookup<AccountId, ()>;
+    type Lookup = IdentityLookup<AccountId>;
     /// The index type for storing how many extrinsics an account has signed.
     type Index = Index;
     /// The index type for blocks.
@@ -417,7 +417,7 @@ parameter_types! {
 }
 
 impl pallet_balances::Config for Runtime {
-    type MaxLocks = ConstU32<50>;
+    type MaxLocks = ConstU32<50>;   
     /// The type for recording an account's balance.
     type Balance = Balance;
     /// The ubiquitous event type.
@@ -428,6 +428,10 @@ impl pallet_balances::Config for Runtime {
     type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
     type MaxReserves = ConstU32<50>;
     type ReserveIdentifier = [u8; 8];
+    type HoldIdentifier = ();
+	type FreezeIdentifier = ();
+    type MaxHolds = ();
+	type MaxFreezes = ();
 }
 
 pub struct ToStakingPot;
@@ -802,6 +806,12 @@ parameter_types! {
     pub BlockGasLimit: U256 = U256::from(NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT.ref_time() / WEIGHT_PER_GAS);
     pub PrecompilesValue: FrontierPrecompiles<Runtime> = FrontierPrecompiles::<_>::new();
     pub WeightPerGas: Weight = Weight::from_parts(WEIGHT_PER_GAS, 0);
+    /// The amount of gas per pov. A ratio of 4 if we convert ref_time to gas and we compare
+	/// it with the pov_size for a block. E.g.
+	/// ceil(
+	///     (max_extrinsic.ref_time() / max_extrinsic.proof_size()) / WEIGHT_PER_GAS
+	/// )
+	pub const GasLimitPovSizeRatio: u64 = 4;
 }
 
 impl pallet_evm::Config for Runtime {
@@ -825,6 +835,7 @@ impl pallet_evm::Config for Runtime {
 	type FindAuthor = FindAuthorTruncated<Aura>;
 	type PrecompilesType = FrontierPrecompiles<Self>;
 	type PrecompilesValue = PrecompilesValue;
+    type GasLimitPovSizeRatio = GasLimitPovSizeRatio;
     type Timestamp = Timestamp;
     type WeightInfo = pallet_evm::weights::SubstrateWeight<Runtime>;
 }
@@ -945,6 +956,7 @@ parameter_types! {
 	pub const CouncilMotionDuration: BlockNumber = 3 * DAYS;
 	pub const CouncilMaxProposals: u32 = 100;
 	pub const CouncilMaxMembers: u32 = 5;
+    pub MaxCollectivesProposalWeight: Weight = Perbill::from_percent(50) * RuntimeBlockWeights::get().max_block;
 }
 
 type CouncilCollective = pallet_collective::Instance1;
@@ -958,6 +970,7 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type DefaultVote = pallet_collective::MoreThanMajorityThenPrimeDefaultVote;
     type SetMembersOrigin = EnsureRoot<Self::AccountId>;
     type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+    type MaxProposalWeight = MaxCollectivesProposalWeight;
 }
 
 parameter_types! {
@@ -1233,6 +1246,14 @@ impl_runtime_apis! {
         fn metadata() -> OpaqueMetadata {
             OpaqueMetadata::new(Runtime::metadata().into())
         }
+
+        fn metadata_at_version(version: u32) -> Option<OpaqueMetadata> {
+			Runtime::metadata_at_version(version)
+		}
+
+		fn metadata_versions() -> Vec<u32> {
+			Runtime::metadata_versions()
+		}
     }
 
     impl sp_block_builder::BlockBuilder<Block> for Runtime {
@@ -1335,6 +1356,9 @@ impl_runtime_apis! {
 				access_list.unwrap_or_default(),
 				is_transactional,
                 validate,
+                // TODO we probably want to support external cost recording in non-transactional calls
+				None,
+				None,
 				config.as_ref().unwrap_or_else(|| <Runtime as pallet_evm::Config>::config()),
 			).map_err(|err| err.error.into())
 		}
@@ -1371,6 +1395,9 @@ impl_runtime_apis! {
 				access_list.unwrap_or_default(),
 				is_transactional,
                 validate,
+                // TODO we probably want to support external cost recording in non-transactional calls
+				None,
+				None,
 				config.as_ref().unwrap_or_else(|| <Runtime as pallet_evm::Config>::config()),
 			).map_err(|err| err.error.into())
 		}
@@ -1413,6 +1440,21 @@ impl_runtime_apis! {
 		}
 
         fn gas_limit_multiplier_support() {}
+
+        fn pending_block(
+			xts: Vec<<Block as BlockT>::Extrinsic>,
+		) -> (Option<pallet_ethereum::Block>, Option<Vec<TransactionStatus>>) {
+			for ext in xts.into_iter() {
+				let _ = Executive::apply_extrinsic(ext);
+			}
+
+			Ethereum::on_finalize(System::block_number() + 1);
+
+			(
+				pallet_ethereum::CurrentBlock::<Runtime>::get(),
+				pallet_ethereum::CurrentTransactionStatuses::<Runtime>::get()
+			)
+		}
 	}
 
     impl fp_rpc::ConvertTransactionRuntimeApi<Block> for Runtime {

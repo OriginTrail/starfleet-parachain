@@ -1,7 +1,7 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
 // std
-use std::{sync::Arc, path::PathBuf, time::Duration, collections::BTreeMap};
+use std::{sync::Arc, time::Duration, collections::BTreeMap};
 
 use cumulus_client_cli::CollatorOptions;
 // Local Runtime Types
@@ -29,7 +29,7 @@ use sc_network::NetworkBlock;
 use sc_network_sync::SyncingService;
 use sc_service::{BasePath, Configuration, PartialComponents, TFullBackend, TFullClient, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryHandle, TelemetryWorker, TelemetryWorkerHandle};
-use sp_keystore::SyncCryptoStorePtr;
+use sp_keystore::KeystorePtr;
 use substrate_prometheus_endpoint::Registry;
 use futures::StreamExt;
 use sc_cli::SubstrateCli;
@@ -61,16 +61,36 @@ type ParachainBackend = TFullBackend<Block>;
 
 type ParachainBlockImport = TParachainBlockImport<Block, Arc<ParachainClient>, ParachainBackend>;
 
-pub(crate) fn db_config_dir(config: &Configuration) -> PathBuf {
-	config
+// // TODO This is copied from frontier. It should be imported instead after
+// // https://github.com/paritytech/frontier/issues/333 is solved
+pub fn open_frontier_backend<C>(
+    client: Arc<C>,
+    config: &sc_service::Configuration,
+) -> Result<Arc<fc_db::kv::Backend<Block>>, String>
+where
+    C: sp_blockchain::HeaderBackend<Block>,
+{
+    let config_dir = config
 		.base_path
 		.as_ref()
 		.map(|base_path| base_path.config_dir(config.chain_spec.id()))
 		.unwrap_or_else(|| {
 			BasePath::from_project("", "", &Cli::executable_name())
 				.config_dir(config.chain_spec.id())
-		})
+		});
+    let path = config_dir.join("frontier").join("db");
+
+    Ok(Arc::new(fc_db::kv::Backend::<Block>::new(
+        client,
+        &fc_db::kv::DatabaseSettings {
+            source: fc_db::DatabaseSource::RocksDb {
+                path,
+                cache_size: 0,
+            },
+        },
+    )?))
 }
+
 
 /// Starts a `ServiceBuilder` for a full service.
 ///
@@ -95,7 +115,7 @@ pub fn new_partial(
 			ParachainBlockImport,
 			Option<Telemetry>, 
 			Option<TelemetryWorkerHandle>, 
-			Arc<fc_db::Backend<Block>>,
+			Arc<fc_db::kv::Backend<Block>>,
 		),
 	>,
 	sc_service::Error,
@@ -111,12 +131,7 @@ pub fn new_partial(
 		})
 		.transpose()?;
 
-	let executor = ParachainExecutor::new(
-		config.wasm_method,
-		config.default_heap_pages,
-		config.max_runtime_instances,
-		config.runtime_cache_size,
-	);
+	let executor = sc_service::new_native_or_wasm_executor(&config);
 
 	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts::<Block, RuntimeApi, _>(
@@ -141,11 +156,7 @@ pub fn new_partial(
 		client.clone(),
 	);
 
-	let frontier_backend = Arc::new(fc_db::Backend::open(
-		Arc::clone(&client),
-		&config.database,
-		&db_config_dir(config),
-	)?);
+	let frontier_backend = open_frontier_backend(client.clone(), config)?;
 
 	let block_import = ParachainBlockImport::new(client.clone(), backend.clone());
 
@@ -249,7 +260,7 @@ async fn start_node_impl(
     task_manager.spawn_essential_handle().spawn(
         "frontier-mapping-sync-worker",
         Some("frontier"),
-        fc_mapping_sync::MappingSyncWorker::new(
+        fc_mapping_sync::kv::MappingSyncWorker::new(
             client.import_notification_stream(),
             Duration::new(6, 0),
             client.clone(),
@@ -304,6 +315,7 @@ async fn start_node_impl(
 		let sync = sync_service.clone();
 		let network = network.clone();
 		let frontier_backend = frontier_backend.clone();
+		let pubsub_notification_sinks = pubsub_notification_sinks.clone();
 
 		Box::new(move |deny_unsafe, subscription_task_executor| {
 			let deps = crate::rpc::FullDeps {
@@ -322,7 +334,7 @@ async fn start_node_impl(
 				block_data_cache: block_data_cache.clone(),
 			};
 
-			crate::rpc::create_full(deps, subscription_task_executor).map_err(Into::into)
+			crate::rpc::create_full(deps, subscription_task_executor, pubsub_notification_sinks.clone()).map_err(Into::into)
 		})
 	};
 
@@ -332,7 +344,7 @@ async fn start_node_impl(
 		transaction_pool: transaction_pool.clone(),
 		task_manager: &mut task_manager,
 		config: parachain_config,
-		keystore: params.keystore_container.sync_keystore(),
+		keystore: params.keystore_container.keystore(),
 		backend,
 		network: network.clone(),
 		sync_service: sync_service.clone(),
@@ -381,8 +393,8 @@ async fn start_node_impl(
 			&task_manager,
 			relay_chain_interface.clone(),
 			transaction_pool,
-			sync_service,
-			params.keystore_container.sync_keystore(),
+			sync_service.clone(),
+			params.keystore_container.keystore(),
 			force_authoring,
 			para_id,
 		)?;
@@ -402,6 +414,7 @@ async fn start_node_impl(
 			collator_key: collator_key.expect("Command line arguments do not allow this. qed"),
 			relay_chain_slot_duration,
 			recovery_handle: Box::new(overseer_handle),
+			sync_service,
 		};
 
 		start_collator(params).await?;
@@ -415,6 +428,7 @@ async fn start_node_impl(
 			relay_chain_slot_duration,
 			import_queue: import_queue_service,
 			recovery_handle: Box::new(overseer_handle),
+			sync_service,
 		};
 
 		start_full_node(params)?;
@@ -475,7 +489,7 @@ fn build_consensus(
 	relay_chain_interface: Arc<dyn RelayChainInterface>,
 	transaction_pool: Arc<sc_transaction_pool::FullPool<Block, ParachainClient>>,
 	sync_oracle: Arc<SyncingService<Block>>,
-	keystore: SyncCryptoStorePtr,
+	keystore: KeystorePtr,
 	force_authoring: bool,
 	para_id: ParaId,
 ) -> Result<Box<dyn ParachainConsensus<Block>>, sc_service::Error> {
