@@ -10,13 +10,15 @@ use neuroweb_runtime::{
 };
 
 // Cumulus Imports
+#[allow(deprecated)]
 use cumulus_client_consensus_aura::{AuraConsensus, BuildAuraConsensusParams, SlotProportion};
 use cumulus_client_consensus_common::{
 	ParachainBlockImport as TParachainBlockImport, ParachainConsensus
 };
+#[allow(deprecated)]
 use cumulus_client_service::{
-	build_network, build_relay_chain_interface, prepare_node_config, start_collator, start_full_node,
-	BuildNetworkParams, StartCollatorParams, StartFullNodeParams,
+	build_network, build_relay_chain_interface, prepare_node_config, start_collator, DARecoveryProfile,
+	BuildNetworkParams, StartCollatorParams, StartRelayChainTasksParams, start_relay_chain_tasks
 };
 use cumulus_primitives_core::ParaId;
 use cumulus_relay_chain_interface::RelayChainInterface;
@@ -93,10 +95,7 @@ pub fn new_partial(
 		ParachainClient,
 		ParachainBackend,
 		(),
-		sc_consensus::DefaultImportQueue<
-			Block,
-			ParachainClient,
-		>,
+		sc_consensus::DefaultImportQueue<Block>,
 		sc_transaction_pool::FullPool<
 			Block,
 			ParachainClient,
@@ -223,17 +222,9 @@ async fn start_node_impl(
 			spawn_handle: task_manager.spawn_handle(),
 			relay_chain_interface: relay_chain_interface.clone(),
 			import_queue: params.import_queue,
+			sybil_resistance_level: cumulus_client_service::CollatorSybilResistance::Resistant,
 		}
 	).await?;
-
-	if parachain_config.offchain_worker.enabled {
-		sc_service::build_offchain_workers(
-			&parachain_config,
-			task_manager.spawn_handle(),
-			client.clone(),
-			network.clone(),
-		);
-	}
 
 	let filter_pool: FilterPool = Arc::new(std::sync::Mutex::new(BTreeMap::new()));
 	let fee_history_cache: FeeHistoryCache = Arc::new(std::sync::Mutex::new(BTreeMap::new()));
@@ -327,7 +318,11 @@ async fn start_node_impl(
 				block_data_cache: block_data_cache.clone(),
 			};
 
-			crate::rpc::create_full(deps, subscription_task_executor, pubsub_notification_sinks.clone()).map_err(Into::into)
+			let pending_consensus_data_provider = Box::new(
+                fc_rpc::pending::AuraConsensusDataProvider::new(client.clone()),
+            );
+
+			crate::rpc::create_full(deps, subscription_task_executor, pubsub_notification_sinks.clone(), pending_consensus_data_provider).map_err(Into::into)
 		})
 	};
 
@@ -409,10 +404,10 @@ async fn start_node_impl(
 			recovery_handle: Box::new(overseer_handle),
 			sync_service,
 		};
-
+		#[allow(deprecated)]
 		start_collator(params).await?;
 	} else {
-		let params = StartFullNodeParams {
+		let params = StartRelayChainTasksParams {
 			client: client.clone(),
 			announce_block,
 			task_manager: &mut task_manager,
@@ -422,9 +417,10 @@ async fn start_node_impl(
 			import_queue: import_queue_service,
 			recovery_handle: Box::new(overseer_handle),
 			sync_service,
+			da_recovery_profile: DARecoveryProfile::FullNode,
 		};
 
-		start_full_node(params)?;
+		start_relay_chain_tasks(params)?;
 	}
 
 	start_network.start_network();
@@ -440,7 +436,7 @@ pub fn build_import_queue(
 	telemetry: Option<TelemetryHandle>,
 	task_manager: &TaskManager,
 ) -> Result<
-	sc_consensus::DefaultImportQueue< Block, ParachainClient>,
+	sc_consensus::DefaultImportQueue< Block>,
 	sc_service::Error,
 > {
 	let slot_duration = cumulus_client_consensus_aura::slot_duration(&*client)?;
@@ -495,7 +491,7 @@ fn build_consensus(
 		prometheus_registry,
 		telemetry.clone(),
 	);
-
+	#[allow(deprecated)]
 	let params = BuildAuraConsensusParams {
 		proposer_factory,
 		create_inherent_data_providers: move |_, (relay_parent, validation_data)| {
@@ -538,7 +534,7 @@ fn build_consensus(
 		max_block_proposal_slot_portion: Some(SlotProportion::new(1f32 / 16f32)),
 		telemetry,
 	};
-
+	#[allow(deprecated)]
 	Ok(AuraConsensus::build::<sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _>(params))
 }
 

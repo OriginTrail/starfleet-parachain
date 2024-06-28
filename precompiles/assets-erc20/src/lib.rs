@@ -26,7 +26,7 @@ use frame_support::traits::fungibles::metadata::Inspect as MetadataInspect;
 use frame_support::traits::fungibles::Inspect;
 use frame_support::traits::OriginTrait;
 use frame_support::{
-    dispatch::{Dispatchable, GetDispatchInfo, PostDispatchInfo},
+    dispatch::{GetDispatchInfo, PostDispatchInfo},
     sp_runtime::traits::StaticLookup,
 };
 use pallet_evm::{AddressMapping, PrecompileSet};
@@ -34,7 +34,7 @@ use precompile_utils::{
     keccak256, succeed, Address, Bytes, EvmData, EvmDataWriter, EvmResult, FunctionModifier,
     LogExt, LogsBuilder, PrecompileHandleExt, RuntimeHelper,
 };
-use sp_runtime::traits::{Bounded, Zero};
+use sp_runtime::traits::{Bounded, Dispatchable, Zero};
 
 use sp_core::{H160, U256};
 use sp_std::{

@@ -1,9 +1,9 @@
-use std::net::SocketAddr;
+use std::{io::Write, net::SocketAddr};
 use codec::Encode;
 use cumulus_client_cli::generate_genesis_block;
 use cumulus_primitives_core::ParaId;
 use frame_benchmarking_cli::{BenchmarkCmd, SUBSTRATE_REFERENCE_HARDWARE};
-use log::{info, warn};
+use log::{info};
 use neuroweb_runtime::Block;
 use sc_cli::{
     ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams,
@@ -15,7 +15,7 @@ use sp_runtime::traits::{AccountIdConversion, Block as BlockT};
 use crate::{
 	chain_spec,
 	cli::{Cli, RelayChainCli, Subcommand},
-	service::{new_partial, ParachainNativeExecutor},
+	service::{new_partial},
 };
 
 fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
@@ -63,8 +63,11 @@ impl SubstrateCli for Cli {
     fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
         load_spec(id)
     }
+}
 
-    fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
+
+impl Cli {
+    fn runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
         &neuroweb_runtime::VERSION
     }
 }
@@ -101,10 +104,6 @@ impl SubstrateCli for RelayChainCli {
 
     fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
         polkadot_cli::Cli::from_iter([RelayChainCli::executable_name()].iter()).load_spec(id)
-    }
-
-    fn native_runtime_version(chain_spec: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
-        polkadot_cli::Cli::native_runtime_version(chain_spec)
     }
 }
 
@@ -175,12 +174,22 @@ pub fn run() -> Result<()> {
 			})
 		},
         Some(Subcommand::ExportGenesisState(cmd)) => {
-			let runner = cli.create_runner(cmd)?;
-			runner.sync_run(|_config| {
-				let spec = cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
-				let state_version = Cli::native_runtime_version(&spec).state_version();
-				cmd.run::<Block>(&*spec, state_version)
-			})
+			let spec = cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
+            let state_version = Cli::runtime_version(&spec).state_version();
+
+            let block: Block = generate_genesis_block(&*spec, state_version)?;
+            let raw_header = block.header().encode();
+            let output_buf = if cmd.raw {
+                raw_header
+            } else {
+                format!("0x{:?}", HexDisplay::from(&block.header().encode())).into_bytes()
+            };
+            if let Some(output) = &cmd.output {
+                std::fs::write(output, output_buf)?;
+            } else {
+                std::io::stdout().write_all(&output_buf)?;
+            }
+            Ok(())
 		},
 		Some(Subcommand::ExportGenesisWasm(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
@@ -195,7 +204,7 @@ pub fn run() -> Result<()> {
             match cmd {
                 BenchmarkCmd::Pallet(cmd) => {
                     if cfg!(feature = "runtime-benchmarks") {
-                        runner.sync_run(|config| cmd.run::<Block, ParachainNativeExecutor>(config))
+                        runner.sync_run(|config| cmd.run::<Block, ()>(config))
                     } else {
                         Err("Benchmarking wasn't enabled when building the node. \
 					You can enable it with `--features runtime-benchmarks`."
@@ -230,39 +239,11 @@ pub fn run() -> Result<()> {
 				_ => Err("Benchmarking sub-command unsupported".into()),
             }
         }
-        #[cfg(feature = "try-runtime")]
-        Some(Subcommand::TryRuntime(cmd)) => {
-            use neuroweb_runtime::MILLISECS_PER_BLOCK;
-			use sc_executor::{sp_wasm_interface::ExtendedHostFunctions, NativeExecutionDispatch};
-			use try_runtime_cli::block_building_info::timestamp_with_aura_info;
-
-			let runner = cli.create_runner(cmd)?;
-
-			type HostFunctionsOf<E> = ExtendedHostFunctions<
-				sp_io::SubstrateHostFunctions,
-				<E as NativeExecutionDispatch>::ExtendHostFunctions,
-			>;
-
-			// grab the task manager.
-			let registry = &runner.config().prometheus_config.as_ref().map(|cfg| &cfg.registry);
-			let task_manager =
-				sc_service::TaskManager::new(runner.config().tokio_handle.clone(), *registry)
-					.map_err(|e| format!("Error: {:?}", e))?;
-            let info_provider = timestamp_with_aura_info(MILLISECS_PER_BLOCK);
-
-			runner.async_run(|_| {
-				Ok((
-					cmd.run::<Block, HostFunctionsOf<ParachainNativeExecutor>, _>(Some(
-						info_provider,
-					)),
-					task_manager,
-				))
-			})
-		},
-        #[cfg(not(feature = "try-runtime"))]
-		Some(Subcommand::TryRuntime) => Err("Try-runtime was not enabled when building the node. \
-			You can enable it with `--features try-runtime`."
-			.into()),
+        Some(Subcommand::TryRuntime) => Err("The `try-runtime` subcommand has been migrated to a \
+            standalone CLI (https://github.com/paritytech/try-runtime-cli). It is no longer \
+            being maintained here and will be removed entirely some time after January 2024. \
+            Please remove this subcommand from your runtime and use the standalone CLI."
+                .into()),
         None => {
             let runner = cli.create_runner(&cli.run.normalize())?;
             let collator_options = cli.run.collator_options();
@@ -292,7 +273,7 @@ pub fn run() -> Result<()> {
                 let parachain_account =
                     AccountIdConversion::<polkadot_primitives::AccountId>::into_account_truncating(&id);
 
-                let state_version = Cli::native_runtime_version(&config.chain_spec).state_version();
+                let state_version = Cli::runtime_version(&config.chain_spec).state_version();
                 let block: Block = generate_genesis_block(&*config.chain_spec, state_version)
 					.map_err(|e| format!("{:?}", e))?;
                 let genesis_state = format!("0x{:?}", HexDisplay::from(&block.header().encode()));
@@ -313,12 +294,6 @@ pub fn run() -> Result<()> {
                         "no"
                     }
                 );
-
-                if collator_options.relay_chain_rpc_urls.is_empty() && cli.relay_chain_args.len() > 0 {
-					warn!("Detected relay chain node arguments together with --relay-chain-rpc-url. 
-                        This command starts a minimal Polkadot node that only uses a network-related subset of all relay chain CLI options."
-                    );
-				}
 
                 crate::service::start_parachain_node(
 					config,
