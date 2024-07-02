@@ -35,9 +35,12 @@ use codec::{Encode, Decode, MaxEncodedLen};
 use frame_support::{
     construct_runtime, parameter_types, transactional,
     traits::{
+        fungible::HoldConsideration,
+        tokens::{PayFromAccount, UnityAssetBalanceConversion},
         AsEnsureOriginWithArg, Currency as PalletCurrency, EqualPrivilegeOnly, EitherOfDiverse, 
         Everything, FindAuthor, ReservableCurrency, Imbalance, InstanceFilter, OnUnbalanced, ConstBool,
-        ConstU128, ConstU32, ConstU64, ConstU8, WithdrawReasons, OnFinalize,
+        ConstU128, ConstU32, ConstU64, ConstU8, WithdrawReasons, OnFinalize, LinearStoragePrice,
+        ExistenceRequirement
     },
     dispatch::DispatchClass,
     weights::{
@@ -61,6 +64,8 @@ pub use sp_runtime::BuildStorage;
 
 // Polkadot Imports
 use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
+use cumulus_primitives_core::ParaId;
+use polkadot_runtime_common::xcm_sender::NoPriceForMessageDelivery;
 
 // XCM Imports
 use xcm::latest::prelude::BodyId;
@@ -75,6 +80,7 @@ use pallet_ethereum::{Call::transact, PostLogContent, EthereumBlockHashMapping, 
 use fp_rpc::TransactionStatus;
 use pallet_evm_accounts::{EvmAddressMapping, MergeAccount};
 use pallet_evm_precompile_assets_erc20::AddressToAssetId;
+use pallet_identity::simple::IdentityInfo;
 
 mod precompiles;
 use precompiles::{FrontierPrecompiles, ASSET_PRECOMPILE_ADDRESS_PREFIX};
@@ -312,6 +318,7 @@ impl pallet_balances::Config for Runtime {
     type MaxReserves = ConstU32<50>;
     type ReserveIdentifier = [u8; 8];
     type RuntimeHoldReason = RuntimeHoldReason;
+    type RuntimeFreezeReason = RuntimeFreezeReason;
 	type FreezeIdentifier = ();
     type MaxHolds = ConstU32<1>;
 	type MaxFreezes = ConstU32<1>;
@@ -425,7 +432,7 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
     type ControllerOrigin = EnsureRoot<AccountId>;
     type ControllerOriginConverter = XcmOriginToTransactDispatchOrigin;
     type WeightInfo = ();
-    type PriceForSiblingDelivery = ();
+    type PriceForSiblingDelivery = NoPriceForMessageDelivery<ParaId>;
 }
 
 impl cumulus_pallet_dmp_queue::Config for Runtime {
@@ -548,6 +555,7 @@ parameter_types! {
     pub const ProposalBondMaximum: Balance = 500 * OTP;
     pub const SpendPeriod: BlockNumber = 24 * DAYS;
     pub const MaxApprovals: u32 = 100;
+    pub TreasuryAccount: AccountId = Treasury::account_id();
 }
 
 impl pallet_treasury::Config for Runtime {
@@ -567,6 +575,15 @@ impl pallet_treasury::Config for Runtime {
     type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
     type MaxApprovals = MaxApprovals;
     type SpendOrigin = frame_support::traits::NeverEnsureOrigin<u128>;
+
+    type AssetKind = ();
+	type Beneficiary = AccountId;
+	type BeneficiaryLookup = IdentityLookup<AccountId>;
+	type Paymaster = PayFromAccount<Balances, TreasuryAccount>;
+	type BalanceConverter = UnityAssetBalanceConversion;
+	type PayoutPeriod = ConstU32<0>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = BenchmarkHelper;
 }
 
 pub struct MergeAccountEvm;
@@ -577,7 +594,7 @@ fn merge_account(source: &AccountId, dest: &AccountId) -> DispatchResult {
      <Balances as ReservableCurrency<_>>::unreserve(source, Balances::reserved_balance(source));
 
      // transfer all free to dest
-     match Balances::transfer(Some(source.clone()).into(), dest.clone().into(), Balances::free_balance(source)) {
+     match Balances::transfer(&source, &dest, Balances::free_balance(source), ExistenceRequirement::AllowDeath,) {
        Ok(_) => Ok(()),
        Err(e) => Err(e),
      }
@@ -722,6 +739,7 @@ impl pallet_evm::Config for Runtime {
 	type PrecompilesType = FrontierPrecompiles<Self>;
 	type PrecompilesValue = PrecompilesValue;
     type GasLimitPovSizeRatio = GasLimitPovSizeRatio;
+    type SuicideQuickClearLimit = ConstU32<0>;
     type Timestamp = Timestamp;
     type WeightInfo = pallet_evm::weights::SubstrateWeight<Runtime>;
 }
@@ -820,15 +838,21 @@ parameter_types! {
 	pub const PreimageMaxSize: u32 = 4096 * 1024;
 	pub const PreimageBaseDeposit: Balance = deposit(2, 64);
 	pub const PreimageByteDeposit: Balance = 1 * MILLIOTP;
+    pub const PreimageHoldReason: RuntimeHoldReason =
+		RuntimeHoldReason::Preimage(pallet_preimage::HoldReason::Preimage);
 }
 
 impl pallet_preimage::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type ManagerOrigin = EnsureRoot<AccountId>;
-	type BaseDeposit = PreimageBaseDeposit;
-	type ByteDeposit = PreimageByteDeposit;
     type WeightInfo = pallet_preimage::weights::SubstrateWeight<Runtime>;
+    type Consideration = HoldConsideration<
+		AccountId,
+		Balances,
+		PreimageHoldReason,
+		LinearStoragePrice<PreimageBaseDeposit, PreimageByteDeposit, Balance>,
+	>;
 }
 
 impl pallet_utility::Config for Runtime {
@@ -943,6 +967,7 @@ impl pallet_identity::Config for Runtime {
 	type SubAccountDeposit = SubAccountDeposit;
 	type MaxSubAccounts = MaxSubAccounts;
 	type MaxAdditionalFields = MaxAdditionalFields;
+    type IdentityInformation = IdentityInfo<MaxAdditionalFields>;
 	type MaxRegistrars = MaxRegistrars;
 	type Slashed = Treasury;
 	type ForceOrigin = EnsureRootOrThreeFiftsOfCouncil;
