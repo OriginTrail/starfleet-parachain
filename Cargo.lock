@@ -693,18 +693,6 @@ dependencies = [
 
 [[package]]
 name = "auto_impl"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7862e21c893d65a1650125d157eaeec691439379a1cee17ee49031b79236ada4"
-dependencies = [
- "proc-macro-error",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "auto_impl"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c87f3f15e7794432337fc718554eaa4dc8f04c9677a950ffe366f20a162ae42"
@@ -945,7 +933,7 @@ version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c0940dc441f31689269e10ac70eb1002a3a1d3ad1390e030043662eb7fe4688b"
 dependencies = [
- "block-padding 0.1.5",
+ "block-padding",
  "byte-tools",
  "byteorder",
  "generic-array 0.12.4",
@@ -957,7 +945,6 @@ version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4152116fd6e9dadb291ae18fc1ec3575ed6d84c29642d97890f4b4a3417297e4"
 dependencies = [
- "block-padding 0.2.1",
  "generic-array 0.14.7",
 ]
 
@@ -978,12 +965,6 @@ checksum = "fa79dedbb091f449f1f39e53edf88d5dbe95f895dae6135a8d7b881fb5af73f5"
 dependencies = [
  "byte-tools",
 ]
-
-[[package]]
-name = "block-padding"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
 
 [[package]]
 name = "blocking"
@@ -1994,7 +1975,7 @@ dependencies = [
  "environmental",
  "frame-support",
  "frame-system",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "log",
  "parity-scale-codec",
  "polkadot-parachain-primitives",
@@ -2866,26 +2847,12 @@ dependencies = [
 
 [[package]]
 name = "ethbloom"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11da94e443c60508eb62cf256243a64da87304c2802ac2528847f79d750007ef"
-dependencies = [
- "crunchy",
- "fixed-hash 0.7.0",
- "impl-codec",
- "impl-rlp",
- "scale-info",
- "tiny-keccak",
-]
-
-[[package]]
-name = "ethbloom"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c22d4b5885b6aa2fe5e8b9329fb8d232bf739e434e6b87347c63bdd00c120f60"
 dependencies = [
  "crunchy",
- "fixed-hash 0.8.0",
+ "fixed-hash",
  "impl-codec",
  "impl-rlp",
  "impl-serde",
@@ -2895,31 +2862,12 @@ dependencies = [
 
 [[package]]
 name = "ethereum"
-version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23750149fe8834c0e24bb9adcbacbe06c45b9861f15df53e09f26cb7c4ab91ef"
-dependencies = [
- "bytes",
- "ethereum-types 0.13.1",
- "hash-db 0.15.2",
- "hash256-std-hasher",
- "parity-scale-codec",
- "rlp",
- "rlp-derive",
- "scale-info",
- "serde",
- "sha3 0.10.8",
- "triehash",
-]
-
-[[package]]
-name = "ethereum"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a89fb87a9e103f71b903b80b670200b54cc67a07578f070681f1fffb7396fb7"
 dependencies = [
  "bytes",
- "ethereum-types 0.14.1",
+ "ethereum-types",
  "hash-db 0.15.2",
  "hash256-std-hasher",
  "parity-scale-codec",
@@ -2937,7 +2885,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2e04d24d20b8ff2235cffbf242d5092de3aa45f77c5270ddbfadd2778ca13fea"
 dependencies = [
  "bytes",
- "ethereum-types 0.14.1",
+ "ethereum-types",
  "hash-db 0.16.0",
  "hash256-std-hasher",
  "parity-scale-codec",
@@ -2950,31 +2898,16 @@ dependencies = [
 
 [[package]]
 name = "ethereum-types"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2827b94c556145446fcce834ca86b7abf0c39a805883fe20e72c5bfdb5a0dc6"
-dependencies = [
- "ethbloom 0.12.1",
- "fixed-hash 0.7.0",
- "impl-codec",
- "impl-rlp",
- "primitive-types 0.11.1",
- "scale-info",
- "uint",
-]
-
-[[package]]
-name = "ethereum-types"
 version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "02d215cbf040552efcbe99a38372fe80ab9d00268e20012b79fcd0f073edd8ee"
 dependencies = [
- "ethbloom 0.13.0",
- "fixed-hash 0.8.0",
+ "ethbloom",
+ "fixed-hash",
  "impl-codec",
  "impl-rlp",
  "impl-serde",
- "primitive-types 0.12.2",
+ "primitive-types",
  "scale-info",
  "uint",
 ]
@@ -3019,30 +2952,10 @@ dependencies = [
 
 [[package]]
 name = "evm"
-version = "0.35.0"
-source = "git+https://github.com/rust-blockchain/evm?rev=51b8c2ce3104265e1fd5bb0fe5cdfd2e0938239c#51b8c2ce3104265e1fd5bb0fe5cdfd2e0938239c"
-dependencies = [
- "auto_impl 0.5.0",
- "environmental",
- "ethereum 0.12.0",
- "evm-core 0.35.0",
- "evm-gasometer 0.35.0",
- "evm-runtime 0.35.0",
- "log",
- "parity-scale-codec",
- "primitive-types 0.11.1",
- "rlp",
- "scale-info",
- "serde",
- "sha3 0.10.8",
-]
-
-[[package]]
-name = "evm"
 version = "0.36.0"
 source = "git+https://github.com/rust-blockchain/evm?rev=13240a8a551586fdef0b5028ed73af80b248092a#13240a8a551586fdef0b5028ed73af80b248092a"
 dependencies = [
- "auto_impl 1.2.0",
+ "auto_impl",
  "environmental",
  "ethereum 0.14.0",
  "evm-core 0.36.0",
@@ -3050,7 +2963,7 @@ dependencies = [
  "evm-runtime 0.36.0",
  "log",
  "parity-scale-codec",
- "primitive-types 0.12.2",
+ "primitive-types",
  "rlp",
  "scale-info",
  "serde",
@@ -3063,7 +2976,7 @@ version = "0.41.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "767f43e9630cc36cf8ff2777cbb0121b055f0d1fd6eaaa13b46a1808f0d0e7e9"
 dependencies = [
- "auto_impl 1.2.0",
+ "auto_impl",
  "environmental",
  "ethereum 0.15.0",
  "evm-core 0.41.0",
@@ -3071,7 +2984,7 @@ dependencies = [
  "evm-runtime 0.41.0",
  "log",
  "parity-scale-codec",
- "primitive-types 0.12.2",
+ "primitive-types",
  "rlp",
  "scale-info",
  "serde",
@@ -3080,22 +2993,11 @@ dependencies = [
 
 [[package]]
 name = "evm-core"
-version = "0.35.0"
-source = "git+https://github.com/rust-blockchain/evm?rev=51b8c2ce3104265e1fd5bb0fe5cdfd2e0938239c#51b8c2ce3104265e1fd5bb0fe5cdfd2e0938239c"
-dependencies = [
- "parity-scale-codec",
- "primitive-types 0.11.1",
- "scale-info",
- "serde",
-]
-
-[[package]]
-name = "evm-core"
 version = "0.36.0"
 source = "git+https://github.com/rust-blockchain/evm?rev=13240a8a551586fdef0b5028ed73af80b248092a#13240a8a551586fdef0b5028ed73af80b248092a"
 dependencies = [
  "parity-scale-codec",
- "primitive-types 0.12.2",
+ "primitive-types",
  "scale-info",
  "serde",
 ]
@@ -3107,20 +3009,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d1da6cedc5cedb4208e59467106db0d1f50db01b920920589f8e672c02fdc04f"
 dependencies = [
  "parity-scale-codec",
- "primitive-types 0.12.2",
+ "primitive-types",
  "scale-info",
  "serde",
-]
-
-[[package]]
-name = "evm-gasometer"
-version = "0.35.0"
-source = "git+https://github.com/rust-blockchain/evm?rev=51b8c2ce3104265e1fd5bb0fe5cdfd2e0938239c#51b8c2ce3104265e1fd5bb0fe5cdfd2e0938239c"
-dependencies = [
- "environmental",
- "evm-core 0.35.0",
- "evm-runtime 0.35.0",
- "primitive-types 0.11.1",
 ]
 
 [[package]]
@@ -3131,7 +3022,7 @@ dependencies = [
  "environmental",
  "evm-core 0.36.0",
  "evm-runtime 0.36.0",
- "primitive-types 0.12.2",
+ "primitive-types",
 ]
 
 [[package]]
@@ -3143,19 +3034,7 @@ dependencies = [
  "environmental",
  "evm-core 0.41.0",
  "evm-runtime 0.41.0",
- "primitive-types 0.12.2",
-]
-
-[[package]]
-name = "evm-runtime"
-version = "0.35.0"
-source = "git+https://github.com/rust-blockchain/evm?rev=51b8c2ce3104265e1fd5bb0fe5cdfd2e0938239c#51b8c2ce3104265e1fd5bb0fe5cdfd2e0938239c"
-dependencies = [
- "auto_impl 0.5.0",
- "environmental",
- "evm-core 0.35.0",
- "primitive-types 0.11.1",
- "sha3 0.10.8",
+ "primitive-types",
 ]
 
 [[package]]
@@ -3163,10 +3042,10 @@ name = "evm-runtime"
 version = "0.36.0"
 source = "git+https://github.com/rust-blockchain/evm?rev=13240a8a551586fdef0b5028ed73af80b248092a#13240a8a551586fdef0b5028ed73af80b248092a"
 dependencies = [
- "auto_impl 1.2.0",
+ "auto_impl",
  "environmental",
  "evm-core 0.36.0",
- "primitive-types 0.12.2",
+ "primitive-types",
  "sha3 0.10.8",
 ]
 
@@ -3176,10 +3055,10 @@ version = "0.41.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "84bbe09b64ae13a29514048c1bb6fda6374ac0b4f6a1f15a443348ab88ef42cd"
 dependencies = [
- "auto_impl 1.2.0",
+ "auto_impl",
  "environmental",
  "evm-core 0.41.0",
- "primitive-types 0.12.2",
+ "primitive-types",
  "sha3 0.10.8",
 ]
 
@@ -3337,7 +3216,7 @@ version = "2.0.0-dev"
 source = "git+https://github.com/polkadot-evm/frontier?branch=polkadot-v1.3.0#e262e80f3083ea8df90bd71a827789bef810f6aa"
 dependencies = [
  "ethereum 0.15.0",
- "ethereum-types 0.14.1",
+ "ethereum-types",
  "evm 0.41.1",
  "fc-api",
  "fc-mapping-sync",
@@ -3391,7 +3270,7 @@ version = "1.1.0-dev"
 source = "git+https://github.com/polkadot-evm/frontier?branch=polkadot-v1.3.0#e262e80f3083ea8df90bd71a827789bef810f6aa"
 dependencies = [
  "ethereum 0.15.0",
- "ethereum-types 0.14.1",
+ "ethereum-types",
  "jsonrpsee",
  "rustc-hex",
  "serde",
@@ -3404,7 +3283,7 @@ version = "1.0.0-dev"
 source = "git+https://github.com/polkadot-evm/frontier?branch=polkadot-v1.3.0#e262e80f3083ea8df90bd71a827789bef810f6aa"
 dependencies = [
  "ethereum 0.15.0",
- "ethereum-types 0.14.1",
+ "ethereum-types",
  "fp-rpc",
  "fp-storage",
  "parity-scale-codec",
@@ -3500,18 +3379,6 @@ dependencies = [
  "parity-scale-codec",
  "parking_lot 0.12.3",
  "scale-info",
-]
-
-[[package]]
-name = "fixed-hash"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfcf0ed7fe52a17a03854ec54a9f76d6d84508d1c0e66bc1793301c73fc8493c"
-dependencies = [
- "byteorder",
- "rand 0.8.5",
- "rustc-hex",
- "static_assertions",
 ]
 
 [[package]]
@@ -3612,7 +3479,7 @@ version = "1.0.0-dev"
 source = "git+https://github.com/polkadot-evm/frontier?branch=polkadot-v1.3.0#e262e80f3083ea8df90bd71a827789bef810f6aa"
 dependencies = [
  "ethereum 0.15.0",
- "ethereum-types 0.14.1",
+ "ethereum-types",
  "fp-evm",
  "frame-support",
  "parity-scale-codec",
@@ -3641,7 +3508,7 @@ version = "3.0.0-dev"
 source = "git+https://github.com/polkadot-evm/frontier?branch=polkadot-v1.3.0#e262e80f3083ea8df90bd71a827789bef810f6aa"
 dependencies = [
  "ethereum 0.15.0",
- "ethereum-types 0.14.1",
+ "ethereum-types",
  "fp-evm",
  "parity-scale-codec",
  "scale-info",
@@ -3857,7 +3724,7 @@ dependencies = [
  "environmental",
  "frame-metadata",
  "frame-support-procedural",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "k256",
  "log",
  "macro_magic",
@@ -4676,17 +4543,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc88fc67028ae3db0c853baa36269d398d5f45b6982f95549ff5def78c935cd"
 dependencies = [
  "serde",
-]
-
-[[package]]
-name = "impl-trait-for-tuples"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ef5550a42e3740a0e71f909d4c861056a284060af885ae7aa6242820f920d9d"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -6730,7 +6586,7 @@ source = "git+https://github.com/paritytech/polkadot-sdk.git?branch=release-polk
 dependencies = [
  "frame-support",
  "frame-system",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "parity-scale-codec",
  "scale-info",
  "sp-runtime",
@@ -7027,7 +6883,7 @@ version = "4.0.0-dev"
 source = "git+https://github.com/polkadot-evm/frontier?branch=polkadot-v1.3.0#e262e80f3083ea8df90bd71a827789bef810f6aa"
 dependencies = [
  "ethereum 0.15.0",
- "ethereum-types 0.14.1",
+ "ethereum-types",
  "evm 0.41.1",
  "fp-consensus",
  "fp-ethereum",
@@ -7059,7 +6915,7 @@ dependencies = [
  "hash-db 0.16.0",
  "hex",
  "hex-literal 0.4.1",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "log",
  "parity-scale-codec",
  "rlp",
@@ -7076,14 +6932,14 @@ version = "1.1.1"
 dependencies = [
  "frame-support",
  "frame-system",
- "impl-trait-for-tuples 0.1.3",
+ "impl-trait-for-tuples",
  "libsecp256k1",
  "pallet-balances",
  "pallet-evm",
  "pallet-evm-utility-macro",
  "parity-scale-codec",
  "scale-info",
- "sha3 0.9.1",
+ "sha3 0.10.8",
  "sp-core",
  "sp-io",
  "sp-runtime",
@@ -7547,7 +7403,7 @@ source = "git+https://github.com/paritytech/polkadot-sdk.git?branch=release-polk
 dependencies = [
  "frame-support",
  "frame-system",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "log",
  "pallet-timestamp",
  "parity-scale-codec",
@@ -7774,7 +7630,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "pallet-balances",
  "parity-scale-codec",
  "scale-info",
@@ -7935,7 +7791,7 @@ dependencies = [
  "bitvec",
  "byte-slice-cast",
  "bytes",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "parity-scale-codec-derive",
  "serde",
 ]
@@ -8991,7 +8847,7 @@ dependencies = [
  "frame-election-provider-support",
  "frame-support",
  "frame-system",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "libsecp256k1",
  "log",
  "pallet-asset-rate",
@@ -9055,7 +8911,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "log",
  "pallet-authority-discovery",
  "pallet-authorship",
@@ -9318,12 +9174,12 @@ name = "precompile-utils"
 version = "1.1.1"
 dependencies = [
  "assert_matches",
- "evm 0.35.0",
+ "evm 0.36.0",
  "fp-evm",
  "frame-support",
  "frame-system",
  "hex-literal 0.3.4",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "log",
  "num_enum 0.5.11",
  "pallet-evm",
@@ -9401,24 +9257,11 @@ dependencies = [
 
 [[package]]
 name = "primitive-types"
-version = "0.11.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e28720988bff275df1f51b171e1b2a18c30d194c4d2b61defdacecd625a5d94a"
-dependencies = [
- "fixed-hash 0.7.0",
- "impl-codec",
- "impl-rlp",
- "scale-info",
- "uint",
-]
-
-[[package]]
-name = "primitive-types"
 version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b34d9fd68ae0b74a41b21c03c2f62847aa0ffea044eee893b4c140b37e244e2"
 dependencies = [
- "fixed-hash 0.8.0",
+ "fixed-hash",
  "impl-codec",
  "impl-rlp",
  "impl-serde",
@@ -11819,18 +11662,6 @@ dependencies = [
 
 [[package]]
 name = "sha3"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f81199417d4e5de3f04b1e871023acea7389672c4135918f05aa9cbf2f2fa809"
-dependencies = [
- "block-buffer 0.9.0",
- "digest 0.9.0",
- "keccak",
- "opaque-debug 0.3.1",
-]
-
-[[package]]
-name = "sha3"
 version = "0.10.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "75872d278a8f37ef87fa0ddbda7802605cb18344497949862c0d4dcb291eba60"
@@ -12361,7 +12192,7 @@ dependencies = [
  "parity-scale-codec",
  "parking_lot 0.12.3",
  "paste",
- "primitive-types 0.12.2",
+ "primitive-types",
  "rand 0.8.5",
  "regex",
  "scale-info",
@@ -12454,7 +12285,7 @@ version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/polkadot-sdk.git?branch=release-polkadot-v1.3.0#c34bcf7e2bf5cba9cd141c790f4c144959d5a5a9"
 dependencies = [
  "async-trait",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "parity-scale-codec",
  "scale-info",
  "sp-runtime",
@@ -12610,7 +12441,7 @@ source = "git+https://github.com/paritytech/polkadot-sdk.git?branch=release-polk
 dependencies = [
  "either",
  "hash256-std-hasher",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "log",
  "parity-scale-codec",
  "paste",
@@ -12631,9 +12462,9 @@ version = "17.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk.git?branch=release-polkadot-v1.3.0#c34bcf7e2bf5cba9cd141c790f4c144959d5a5a9"
 dependencies = [
  "bytes",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "parity-scale-codec",
- "primitive-types 0.12.2",
+ "primitive-types",
  "sp-externalities",
  "sp-runtime-interface-proc-macro",
  "sp-std",
@@ -12675,7 +12506,7 @@ name = "sp-staking"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/polkadot-sdk.git?branch=release-polkadot-v1.3.0#c34bcf7e2bf5cba9cd141c790f4c144959d5a5a9"
 dependencies = [
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "parity-scale-codec",
  "scale-info",
  "serde",
@@ -12854,7 +12685,7 @@ version = "14.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk.git?branch=release-polkadot-v1.3.0#c34bcf7e2bf5cba9cd141c790f4c144959d5a5a9"
 dependencies = [
  "anyhow",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "log",
  "parity-scale-codec",
  "sp-std",
@@ -12938,7 +12769,7 @@ dependencies = [
  "bounded-collections",
  "derivative",
  "environmental",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "log",
  "parity-scale-codec",
  "scale-info",
@@ -12954,7 +12785,7 @@ source = "git+https://github.com/paritytech/polkadot-sdk.git?branch=release-polk
 dependencies = [
  "frame-support",
  "frame-system",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "log",
  "pallet-transaction-payment",
  "parity-scale-codec",
@@ -12977,7 +12808,7 @@ dependencies = [
  "environmental",
  "frame-benchmarking",
  "frame-support",
- "impl-trait-for-tuples 0.2.2",
+ "impl-trait-for-tuples",
  "log",
  "parity-scale-codec",
  "sp-arithmetic",
