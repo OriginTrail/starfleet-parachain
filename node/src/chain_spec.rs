@@ -65,19 +65,22 @@ pub fn template_session_keys(keys: AuraId) -> neuroweb_runtime::SessionKeys {
 
 pub fn development_config() -> ChainSpec {
 	let mut properties = sc_chain_spec::Properties::new();
-	properties.insert("tokenSymbol".into(), "OTP".into());
+	properties.insert("tokenSymbol".into(), "NEURO".into());
 	properties.insert("tokenDecimals".into(), 12.into());
 	properties.insert("ss58Format".into(), 101.into());
 
-	ChainSpec::from_genesis(
-		// Name
-		"Development",
-		// ID
-		"dev",
-		ChainType::Development,
-		move || {
-			testnet_genesis(
-				// initial collators.
+	ChainSpec::builder(
+		neuroweb_runtime::WASM_BINARY.expect("WASM binary was not build, please build it!"),
+		Extensions {
+			relay_chain: "rococo-local".into(), // You MUST set this to the correct network!
+			para_id: 2048,
+		},
+	)
+	.with_name("Development")
+	.with_id("dev")
+	.with_chain_type(ChainType::Development)
+	.with_properties(properties)
+	.with_genesis_config(testnet_genesis(
 				vec![
 					(
 						get_account_id_from_seed::<sr25519::Public>("Alice"),
@@ -103,36 +106,29 @@ pub fn development_config() -> ChainSpec {
 					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
 				],
-				2000.into(),
-			)
-		},
-		Vec::new(),
-		None,
-		None,
-		None,
-		None,
-		Extensions {
-			relay_chain: "rococo-local".into(), // You MUST set this to the correct network!
-			para_id: 2000,
-		},
-	)
+				2048.into(),
+	))
+	.build()
 }
 
 pub fn local_testnet_config() -> ChainSpec {
 	let mut properties = sc_chain_spec::Properties::new();
-	properties.insert("tokenSymbol".into(), "OTP".into());
+	properties.insert("tokenSymbol".into(), "NEURO".into());
 	properties.insert("tokenDecimals".into(), 12.into());
 	properties.insert("ss58Format".into(), 101.into());
 
-	ChainSpec::from_genesis(
-		// Name
-		"OriginTrail Parachain Testnet",
-		// ID
-		"origintrail_parachain_testnet",
-		ChainType::Local,
-		move || {
-			testnet_genesis(
-				// initial collators.
+	ChainSpec::builder(
+		neuroweb_runtime::WASM_BINARY.expect("WASM binary was not build, please build it!"),
+		Extensions {
+			relay_chain: "rococo-local".into(), // You MUST set this to the correct network!
+			para_id: 2048,
+		},
+	)
+	.with_name("NeuroWeb Testnet")
+	.with_id("neuroweb_testnet")
+	.with_chain_type(ChainType::Local)
+	.with_properties(properties)
+	.with_genesis_config(testnet_genesis(
 				vec![
 					(
 						get_account_id_from_seed::<sr25519::Public>("Alice"),
@@ -158,25 +154,9 @@ pub fn local_testnet_config() -> ChainSpec {
 					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
 				],
-				2000.into(),
-			)
-		},
-		// Bootnodes
-		Vec::new(),
-		// Telemetry
-		None,
-		// Protocol ID
-		Some("origintrail-parachain"),
-		// Fork ID
-		None,
-		// Properties
-		Some(properties),
-		// Extensions
-		Extensions {
-			relay_chain: "rococo-local".into(), // You MUST set this to the correct network!
-			para_id: 2000,
-		},
-	)
+				2048.into(),
+	))
+	.build()
 }
 
 fn testnet_genesis(
@@ -184,14 +164,9 @@ fn testnet_genesis(
 	_root_key: AccountId,
 	endowed_accounts: Vec<AccountId>,
 	id: ParaId,
-) -> neuroweb_runtime::RuntimeGenesisConfig {
-	neuroweb_runtime::RuntimeGenesisConfig {
-		system: neuroweb_runtime::SystemConfig {
-			code: neuroweb_runtime::WASM_BINARY
-				.expect("WASM binary was not build, please build it!")
-				.to_vec(),
-			..Default::default()
-		},
+) -> serde_json::Value {
+	let config = neuroweb_runtime::RuntimeGenesisConfig {
+		system: Default::default(),
 		balances: neuroweb_runtime::BalancesConfig {
 			balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 60)).collect(),
 		},
@@ -271,5 +246,7 @@ fn testnet_genesis(
 		council: Default::default(),
 		democracy: Default::default(),
 		transaction_payment: Default::default(),
-	}
+	};
+
+	serde_json::to_value(&config).expect("Could not build genesis config.")
 }

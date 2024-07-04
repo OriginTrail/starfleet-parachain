@@ -1,6 +1,6 @@
 [package]
 name = "neuroweb-node"
-version = "1.3.0"
+version = "1.4.0"
 authors = ["TraceLabs"]
 description = "NeuroWeb - Cumulus FRAME-based Substrate Node"
 license = "GPL-3.0-only"
@@ -19,6 +19,7 @@ futures = { workspace = true }
 log = { workspace = true }
 codec = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["arbitrary_precision"] }
 jsonrpsee = { workspace = true }
 
 # Local
