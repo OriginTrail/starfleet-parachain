@@ -1,21 +1,18 @@
-use std::{io::Write, net::SocketAddr};
-use codec::Encode;
-use cumulus_client_cli::generate_genesis_block;
+use std::net::SocketAddr;
 use cumulus_primitives_core::ParaId;
 use frame_benchmarking_cli::{BenchmarkCmd, SUBSTRATE_REFERENCE_HARDWARE};
 use log::{info};
 use neuroweb_runtime::Block;
 use sc_cli::{
     ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams,
-    NetworkParams, Result, RuntimeVersion, SharedParams, SubstrateCli,
+    NetworkParams, Result, SharedParams, SubstrateCli,
 };
-use sc_service::config::{BasePath, PrometheusConfig};
-use sp_core::hexdisplay::HexDisplay;
-use sp_runtime::traits::{AccountIdConversion, Block as BlockT};
+use sc_service::{PartialComponents, config::{BasePath, PrometheusConfig}};
+use sp_runtime::traits::AccountIdConversion;
 use crate::{
 	chain_spec,
 	cli::{Cli, RelayChainCli, Subcommand},
-	service::{new_partial},
+	service::{new_partial, AdditionalConfig},
 };
 
 fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
@@ -62,13 +59,6 @@ impl SubstrateCli for Cli {
 
     fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
         load_spec(id)
-    }
-}
-
-
-impl Cli {
-    fn runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
-        &neuroweb_runtime::VERSION
     }
 }
 
@@ -174,22 +164,14 @@ pub fn run() -> Result<()> {
 			})
 		},
         Some(Subcommand::ExportGenesisState(cmd)) => {
-			let spec = cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
-            let state_version = Cli::runtime_version(&spec).state_version();
-
-            let block: Block = generate_genesis_block(&*spec, state_version)?;
-            let raw_header = block.header().encode();
-            let output_buf = if cmd.raw {
-                raw_header
-            } else {
-                format!("0x{:?}", HexDisplay::from(&block.header().encode())).into_bytes()
-            };
-            if let Some(output) = &cmd.output {
-                std::fs::write(output, output_buf)?;
-            } else {
-                std::io::stdout().write_all(&output_buf)?;
-            }
-            Ok(())
+            let runner = cli.create_runner(cmd)?;
+            runner.sync_run(|config| {
+                let PartialComponents { client, .. } =
+                    new_partial(
+                        &config,
+                    )?;
+                cmd.run(client)
+            }) 
 		},
 		Some(Subcommand::ExportGenesisWasm(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
@@ -200,11 +182,13 @@ pub fn run() -> Result<()> {
 		},
         Some(Subcommand::Benchmark(cmd)) => {
             let runner = cli.create_runner(cmd)?;
+            use sp_runtime::traits::HashingFor;
+
             // Switch on the concrete benchmark sub-command-
             match cmd {
                 BenchmarkCmd::Pallet(cmd) => {
                     if cfg!(feature = "runtime-benchmarks") {
-                        runner.sync_run(|config| cmd.run::<Block, ()>(config))
+                        runner.sync_run(|config| cmd.run::<HashingFor<Block>, ()>(config))
                     } else {
                         Err("Benchmarking wasn't enabled when building the node. \
 					You can enable it with `--features runtime-benchmarks`."
@@ -273,11 +257,6 @@ pub fn run() -> Result<()> {
                 let parachain_account =
                     AccountIdConversion::<polkadot_primitives::AccountId>::into_account_truncating(&id);
 
-                let state_version = Cli::runtime_version(&config.chain_spec).state_version();
-                let block: Block = generate_genesis_block(&*config.chain_spec, state_version)
-					.map_err(|e| format!("{:?}", e))?;
-                let genesis_state = format!("0x{:?}", HexDisplay::from(&block.header().encode()));
-
                 let tokio_handle = config.tokio_handle.clone();
                 let polkadot_config =
                     SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, tokio_handle)
@@ -285,7 +264,6 @@ pub fn run() -> Result<()> {
 
                 info!("Parachain id: {:?}", id);
                 info!("Parachain Account: {}", parachain_account);
-                info!("Parachain genesis state: {}", genesis_state);
                 info!(
                     "Is collating: {}",
                     if config.role.is_authority() {
@@ -295,12 +273,18 @@ pub fn run() -> Result<()> {
                     }
                 );
 
+                let additional_config = AdditionalConfig {
+                    proposer_block_size_limit: cli.proposer_block_size_limit,
+                    proposer_soft_deadline_percent: cli.proposer_soft_deadline_percent
+                };
+
                 crate::service::start_parachain_node(
 					config,
 					polkadot_config,
 					collator_options,
 					id,
 					hwbench,
+                    additional_config
 				)
 				.await
 				.map(|r| r.0)

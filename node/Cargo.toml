@@ -66,12 +66,15 @@ try-runtime-cli = { workspace = true }
 # Polkadot
 polkadot-cli = { workspace = true }
 polkadot-primitives = { workspace = true }
+polkadot-service = { workspace = true }
 xcm = { workspace = true }
 
 # Cumulus
 cumulus-client-cli = { workspace = true }
 cumulus-client-consensus-aura = { workspace = true }
 cumulus-client-consensus-common = { workspace = true }
+cumulus-client-consensus-proposer = { workspace = true }
+cumulus-client-collator = { workspace = true }
 cumulus-client-service = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 cumulus-primitives-parachain-inherent = { workspace = true }

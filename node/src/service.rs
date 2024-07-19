@@ -10,18 +10,17 @@ use neuroweb_runtime::{
 };
 
 // Cumulus Imports
-#[allow(deprecated)]
-use cumulus_client_consensus_aura::{AuraConsensus, BuildAuraConsensusParams, SlotProportion};
+use cumulus_client_consensus_aura::collators::basic as basic_aura;
 use cumulus_client_consensus_common::{
-	ParachainBlockImport as TParachainBlockImport, ParachainConsensus
+	ParachainBlockImport as TParachainBlockImport
 };
-#[allow(deprecated)]
 use cumulus_client_service::{
-	build_network, build_relay_chain_interface, prepare_node_config, start_collator, DARecoveryProfile,
-	BuildNetworkParams, StartCollatorParams, StartRelayChainTasksParams, start_relay_chain_tasks
+	build_network, build_relay_chain_interface, prepare_node_config, DARecoveryProfile,
+	BuildNetworkParams, StartRelayChainTasksParams, start_relay_chain_tasks
 };
 use cumulus_primitives_core::ParaId;
 use cumulus_relay_chain_interface::RelayChainInterface;
+use polkadot_service::CollatorPair;
 
 // Substrate Imports
 use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
@@ -32,16 +31,30 @@ use sc_network_sync::SyncingService;
 use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryHandle, TelemetryWorker, TelemetryWorkerHandle};
 use sp_keystore::KeystorePtr;
+use sp_runtime::Percent;
 use substrate_prometheus_endpoint::Registry;
 use futures::StreamExt;
 use sc_client_api::BlockchainEvents;
 use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
 
+/// Extra host functions
+#[cfg(feature = "runtime-benchmarks")]
+pub type HostFunctions = (
+    frame_benchmarking::benchmarking::HostFunctions,
+    cumulus_client_service::storage_proof_size::HostFunctions,
+);
+
+/// Extra host functions
+#[cfg(not(feature = "runtime-benchmarks"))]
+pub type HostFunctions = (
+    cumulus_client_service::storage_proof_size::HostFunctions,
+);
+
 /// Native executor type.
 pub struct ParachainNativeExecutor;
 
 impl sc_executor::NativeExecutionDispatch for ParachainNativeExecutor {
-	type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
+	type ExtendHostFunctions = HostFunctions;
 
 	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
 		neuroweb_runtime::api::dispatch(method, data)
@@ -60,8 +73,18 @@ type ParachainBackend = TFullBackend<Block>;
 
 type ParachainBlockImport = TParachainBlockImport<Block, Arc<ParachainClient>, ParachainBackend>;
 
-// // TODO This is copied from frontier. It should be imported instead after
-// // https://github.com/paritytech/frontier/issues/333 is solved
+#[derive(Clone)]
+/// To add additional config to start_xyz_node functions
+pub struct AdditionalConfig {
+    /// Maxium allowed block size limit to propose
+    pub proposer_block_size_limit: usize,
+
+    /// Soft deadline limit used by `Proposer`
+    pub proposer_soft_deadline_percent: u8,
+}
+
+// TODO This is copied from frontier. It should be imported instead after
+// https://github.com/paritytech/frontier/issues/333 is solved
 pub fn open_frontier_backend<C>(
     client: Arc<C>,
     config: &sc_service::Configuration,
@@ -123,10 +146,11 @@ pub fn new_partial(
 	let executor = sc_service::new_native_or_wasm_executor(&config);
 
 	let (client, backend, keystore_container, task_manager) =
-		sc_service::new_full_parts::<Block, RuntimeApi, _>(
+		sc_service::new_full_parts_record_import::<Block, RuntimeApi, _>(
 			config,
 			telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
 			executor,
+			true
 		)?;
 	let client = Arc::new(client);
 
@@ -179,6 +203,7 @@ async fn start_node_impl(
 	collator_options: CollatorOptions,
 	para_id: ParaId,
 	hwbench: Option<sc_sysinfo::HwBench>,
+	additional_config: AdditionalConfig,
 ) -> sc_service::error::Result<(
 	TaskManager,
 	Arc<ParachainClient>,
@@ -204,7 +229,6 @@ async fn start_node_impl(
 	.await
 	.map_err(|e| sc_service::Error::Application(Box::new(e) as Box<_>))?;
 
-	let force_authoring = parachain_config.force_authoring;
 	let validator = parachain_config.role.is_authority();
 	let prometheus_registry = parachain_config.prometheus_registry().cloned();
 	let is_authority = parachain_config.role.is_authority();
@@ -377,8 +401,25 @@ async fn start_node_impl(
 		.overseer_handle()
 		.map_err(|e| sc_service::Error::Application(Box::new(e)))?;
 
+	start_relay_chain_tasks(StartRelayChainTasksParams {
+		client: client.clone(),
+		announce_block,
+		task_manager: &mut task_manager,
+		para_id,
+		relay_chain_interface: relay_chain_interface.clone(),
+		relay_chain_slot_duration,
+		import_queue: import_queue_service,
+		recovery_handle: Box::new(overseer_handle),
+		sync_service: sync_service.clone(),
+		da_recovery_profile: if validator {
+			DARecoveryProfile::Collator
+		} else {
+			DARecoveryProfile::FullNode
+		},
+	})?;
+
 	if validator {
-		let parachain_consensus = build_consensus(
+		start_aura_consensus(
 			client.clone(),
 			block_import,
 			prometheus_registry.as_ref(),
@@ -388,44 +429,10 @@ async fn start_node_impl(
 			transaction_pool,
 			sync_service.clone(),
 			params.keystore_container.keystore(),
-			force_authoring,
 			para_id,
+			collator_key.expect("Command line arguments do not allow this. qed"),
+            additional_config,
 		)?;
-
-		let spawner = task_manager.spawn_handle();
-
-		let params = StartCollatorParams {
-			para_id,
-			block_status: client.clone(),
-			announce_block,
-			client: client.clone(),
-			task_manager: &mut task_manager,
-			relay_chain_interface,
-			spawner,
-			parachain_consensus,
-			import_queue: import_queue_service,
-			collator_key: collator_key.expect("Command line arguments do not allow this. qed"),
-			relay_chain_slot_duration,
-			recovery_handle: Box::new(overseer_handle),
-			sync_service,
-		};
-		#[allow(deprecated)]
-		start_collator(params).await?;
-	} else {
-		let params = StartRelayChainTasksParams {
-			client: client.clone(),
-			announce_block,
-			task_manager: &mut task_manager,
-			para_id,
-			relay_chain_interface,
-			relay_chain_slot_duration,
-			import_queue: import_queue_service,
-			recovery_handle: Box::new(overseer_handle),
-			sync_service,
-			da_recovery_profile: DARecoveryProfile::FullNode,
-		};
-
-		start_relay_chain_tasks(params)?;
 	}
 
 	start_network.start_network();
@@ -474,7 +481,7 @@ pub fn build_import_queue(
 	.map_err(Into::into)
 }
 
-fn build_consensus(
+fn start_aura_consensus(
 	client: Arc<ParachainClient>,
 	block_import: ParachainBlockImport,
 	prometheus_registry: Option<&Registry>,
@@ -484,63 +491,65 @@ fn build_consensus(
 	transaction_pool: Arc<sc_transaction_pool::FullPool<Block, ParachainClient>>,
 	sync_oracle: Arc<SyncingService<Block>>,
 	keystore: KeystorePtr,
-	force_authoring: bool,
 	para_id: ParaId,
-) -> Result<Box<dyn ParachainConsensus<Block>>, sc_service::Error> {
+	collator_key: CollatorPair,
+	additional_config: AdditionalConfig,
+) -> Result<(), sc_service::Error> {
 	let slot_duration = cumulus_client_consensus_aura::slot_duration(&*client)?;
 
-	let proposer_factory = sc_basic_authorship::ProposerFactory::with_proof_recording(
+	let mut proposer_factory = sc_basic_authorship::ProposerFactory::with_proof_recording(
 		task_manager.spawn_handle(),
 		client.clone(),
 		transaction_pool,
 		prometheus_registry,
 		telemetry.clone(),
 	);
-	#[allow(deprecated)]
-	let params = BuildAuraConsensusParams {
-		proposer_factory,
-		create_inherent_data_providers: move |_, (relay_parent, validation_data)| {
-			let relay_chain_interface = relay_chain_interface.clone();
-			async move {
-				let parachain_inherent =
-					cumulus_primitives_parachain_inherent::ParachainInherentData::create_at(
-						relay_parent,
-						&relay_chain_interface,
-						&validation_data,
-						para_id,
-					)
-					.await;
-				let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
 
-				let slot =
-						sp_consensus_aura::inherents::InherentDataProvider::from_timestamp_and_slot_duration(
-							*timestamp,
-							slot_duration,
-						);
+	proposer_factory.set_default_block_size_limit(additional_config.proposer_block_size_limit);
+	proposer_factory.set_soft_deadline(Percent::from_percent(
+        additional_config.proposer_soft_deadline_percent,
+    ));
 
-				let parachain_inherent = parachain_inherent.ok_or_else(|| {
-					Box::<dyn std::error::Error + Send + Sync>::from(
-						"Failed to create parachain inherent",
-					)
-				})?;
-				Ok((slot, timestamp, parachain_inherent))
-			}
-		},
-		block_import,
-		para_client: client,
-		backoff_authoring_blocks: Option::<()>::None,
-		sync_oracle,
-		keystore,
-		force_authoring,
-		slot_duration,
-		// We got around 500ms for proposing
-		block_proposal_slot_portion: SlotProportion::new(1f32 / 24f32),
-		// And a maximum of 750ms if slots are skipped
-		max_block_proposal_slot_portion: Some(SlotProportion::new(1f32 / 16f32)),
-		telemetry,
+	let overseer_handle = relay_chain_interface
+		.overseer_handle()
+		.map_err(|e| sc_service::Error::Application(Box::new(e)))?;
+
+	let announce_block = {
+		let sync_service = sync_oracle.clone();
+		Arc::new(move |hash, data| sync_service.announce_block(hash, data))
 	};
-	#[allow(deprecated)]
-	Ok(AuraConsensus::build::<sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _>(params))
+
+	let collator_service = cumulus_client_collator::service::CollatorService::new(
+        client.clone(),
+        Arc::new(task_manager.spawn_handle()),
+        announce_block,
+        client.clone(),
+    );
+
+	let fut = basic_aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _>(basic_aura::Params {
+        create_inherent_data_providers: move |_, ()| async move { Ok(()) },
+        block_import: block_import.clone(),
+        para_client: client.clone(),
+        relay_client: relay_chain_interface.clone(),
+        sync_oracle: sync_oracle.clone(),
+        keystore,
+        collator_key,
+        para_id,
+        overseer_handle,
+        slot_duration,
+        relay_chain_slot_duration: Duration::from_secs(6),
+        proposer: cumulus_client_consensus_proposer::Proposer::new(proposer_factory),
+        collator_service,
+        // We got around 500ms for proposing
+        authoring_duration: Duration::from_millis(500),
+        collation_request_receiver: None,
+    });
+
+	task_manager
+        .spawn_essential_handle()
+        .spawn("aura", None, fut);
+
+	Ok(())
 }
 
 /// Start a parachain node.
@@ -550,9 +559,10 @@ pub async fn start_parachain_node(
 	collator_options: CollatorOptions,
 	para_id: ParaId,
 	hwbench: Option<sc_sysinfo::HwBench>,
+	additional_config: AdditionalConfig,
 ) -> sc_service::error::Result<(
 	TaskManager,
 	Arc<ParachainClient>,
 )> {
-	start_node_impl(parachain_config, polkadot_config, collator_options, para_id, hwbench).await
+	start_node_impl(parachain_config, polkadot_config, collator_options, para_id, hwbench, additional_config.clone()).await
 }

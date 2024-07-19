@@ -260,6 +260,8 @@ impl frame_system::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     /// The ubiquitous origin type.
     type RuntimeOrigin = RuntimeOrigin;
+    /// The aggregated RuntimeTask type.
+    type RuntimeTask = RuntimeTask;
     /// Maximum number of block number to block hash mappings to keep (oldest pruned first).
     type BlockHashCount = BlockHashCount;
     /// Runtime version.
@@ -287,6 +289,11 @@ impl frame_system::Config for Runtime {
     /// The action to take on a Runtime Upgrade
     type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
     type MaxConsumers = frame_support::traits::ConstU32<16>;
+    type SingleBlockMigrations = ();
+    type MultiBlockMigrator = ();
+    type PreInherents = ();
+    type PostInherents = ();
+    type PostTransactions = ();
 }
 
 impl pallet_timestamp::Config for Runtime {
@@ -321,7 +328,6 @@ impl pallet_balances::Config for Runtime {
     type RuntimeHoldReason = RuntimeHoldReason;
     type RuntimeFreezeReason = RuntimeFreezeReason;
 	type FreezeIdentifier = ();
-    type MaxHolds = ConstU32<1>;
 	type MaxFreezes = ConstU32<1>;
 }
 
@@ -588,6 +594,7 @@ impl pallet_vesting::Config for Runtime {
     type MinVestedTransfer = MinVestedTransfer;
     type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
     type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
+    type BlockNumberProvider = System;
     // `VestingInfo` encode length is 36bytes. 28 schedules gets encoded as 1009 bytes, which is the
     // highest number of schedules that encodes less than 2^10.
     const MAX_VESTING_SCHEDULES: u32 = 28;
@@ -1015,6 +1022,12 @@ impl pallet_identity::Config for Runtime {
 	type Slashed = Treasury;
 	type ForceOrigin = EnsureRootOrThreeFiftsOfCouncil;
 	type RegistrarOrigin = EnsureRootOrThreeFiftsOfCouncil;
+    type OffchainSignature = Signature;
+    type SigningPublicKey = <Signature as sp_runtime::traits::Verify>::Signer;
+    type UsernameAuthorityOrigin = EnsureRootOrThreeFiftsOfCouncil;
+    type PendingUsernameExpiration = ConstU32<{ 7 * DAYS }>;
+    type MaxSuffixLength = ConstU32<7>;
+    type MaxUsernameLength = ConstU32<32>;
 	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
 }
 
@@ -1161,7 +1174,6 @@ mod benches {
         [pallet_identity, Identity]
         [pallet_preimage, Preimage]
         [pallet_proxy, Proxy]
-        [pallet_session, SessionBench::<Runtime>]
         [pallet_timestamp, Timestamp]
         [pallet_collator_selection, CollatorSelection]
         [cumulus_pallet_xcmp_queue, XcmpQueue]
@@ -1268,6 +1280,7 @@ pub type SignedExtra = (
     frame_system::CheckNonce<Runtime>,
     frame_system::CheckWeight<Runtime>,
     pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+    cumulus_primitives_storage_weight_reclaim::StorageWeightReclaim<Runtime>,
     frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 );
 
@@ -1306,7 +1319,7 @@ impl_runtime_apis! {
             Executive::execute_block(block)
         }
 
-        fn initialize_block(header: &<Block as BlockT>::Header) {
+        fn initialize_block(header: &<Block as BlockT>::Header) -> sp_runtime::ExtrinsicInclusionMode {
             Executive::initialize_block(header)
         }
     }
@@ -1640,7 +1653,6 @@ impl_runtime_apis! {
             use frame_benchmarking::{Benchmarking, BenchmarkList};
             use frame_support::traits::StorageInfoTrait;
             use frame_system_benchmarking::Pallet as SystemBench;
-            use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
 
             let mut list = Vec::<BenchmarkList>::new();
             list_benchmarks!(list, extra);
@@ -1656,9 +1668,6 @@ impl_runtime_apis! {
 
             use frame_system_benchmarking::Pallet as SystemBench;
             impl frame_system_benchmarking::Config for Runtime {}
-
-            use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
-            impl cumulus_pallet_session_benchmarking::Config for Runtime {}
 
             use frame_support::traits::{TrackedStorageKey, WhitelistedStorageKeys};
 			let whitelist = AllPalletsWithSystem::whitelisted_storage_keys();
