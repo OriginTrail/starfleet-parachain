@@ -56,9 +56,9 @@ pub mod pallet {
     use crate::weights::WeightInfo;
     use frame_support::{pallet_prelude::*, traits::EnsureOrigin};
     use frame_system::pallet_prelude::*;
-    use parity_scale_codec::HasCompact;
+    use codec::HasCompact;
     use sp_std::boxed::Box;
-    use xcm::{v3::MultiLocation, VersionedMultiLocation};
+    use xcm::{v3::MultiLocation, VersionedLocation};
 
     const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
@@ -147,27 +147,27 @@ pub mod pallet {
     pub enum Event<T: Config> {
         /// Registed mapping between asset type and asset Id.
         AssetRegistered {
-            asset_location: VersionedMultiLocation,
+            asset_location: VersionedLocation,
             asset_id: T::AssetId,
         },
         /// Changed the amount of units we are charging per execution second for an asset
         UnitsPerSecondChanged {
-            asset_location: VersionedMultiLocation,
+            asset_location: VersionedLocation,
             units_per_second: u128,
         },
         /// Changed the asset type mapping for a given asset id
         AssetLocationChanged {
-            previous_asset_location: VersionedMultiLocation,
+            previous_asset_location: VersionedLocation,
             asset_id: T::AssetId,
-            new_asset_location: VersionedMultiLocation,
+            new_asset_location: VersionedLocation,
         },
         /// Supported asset type for fee payment removed.
         SupportedAssetRemoved {
-            asset_location: VersionedMultiLocation,
+            asset_location: VersionedLocation,
         },
         /// Removed all information related to an asset Id
         AssetRemoved {
-            asset_location: VersionedMultiLocation,
+            asset_location: VersionedLocation,
             asset_id: T::AssetId,
         },
     }
@@ -178,7 +178,7 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn asset_id_to_location)]
     pub type AssetIdToLocation<T: Config> =
-        StorageMap<_, Twox64Concat, T::AssetId, VersionedMultiLocation>;
+        StorageMap<_, Twox64Concat, T::AssetId, VersionedLocation>;
 
     /// Mapping from an asset type to an asset id.
     /// Can be used when receiving a multilocation XCM message to retrieve
@@ -186,7 +186,7 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn asset_location_to_id)]
     pub type AssetLocationToId<T: Config> =
-        StorageMap<_, Twox64Concat, VersionedMultiLocation, T::AssetId>;
+        StorageMap<_, Twox64Concat, VersionedLocation, T::AssetId>;
 
     /// Stores the units per second for local execution for a AssetLocation.
     /// This is used to know how to charge for XCM execution in a particular asset.
@@ -195,7 +195,7 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn asset_location_units_per_second)]
     pub type AssetLocationUnitsPerSecond<T: Config> =
-        StorageMap<_, Twox64Concat, VersionedMultiLocation, u128>;
+        StorageMap<_, Twox64Concat, VersionedLocation, u128>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -206,7 +206,7 @@ pub mod pallet {
         #[pallet::weight(T::WeightInfo::register_asset_location())]
         pub fn register_asset_location(
             origin: OriginFor<T>,
-            asset_location: Box<VersionedMultiLocation>,
+            asset_location: Box<VersionedLocation>,
             #[pallet::compact] asset_id: T::AssetId,
         ) -> DispatchResult {
             T::ManagerOrigin::ensure_origin(origin)?;
@@ -219,7 +219,7 @@ pub mod pallet {
 
             let v3_asset_loc = MultiLocation::try_from(*asset_location)
                 .map_err(|_| Error::<T>::MultiLocationNotSupported)?;
-            let asset_location = VersionedMultiLocation::V3(v3_asset_loc);
+            let asset_location = VersionedLocation::V3(v3_asset_loc);
 
             AssetIdToLocation::<T>::insert(&asset_id, asset_location.clone());
             AssetLocationToId::<T>::insert(&asset_location, asset_id);
@@ -239,14 +239,14 @@ pub mod pallet {
         #[pallet::weight(T::WeightInfo::set_asset_units_per_second())]
         pub fn set_asset_units_per_second(
             origin: OriginFor<T>,
-            asset_location: Box<VersionedMultiLocation>,
+            asset_location: Box<VersionedLocation>,
             #[pallet::compact] units_per_second: u128,
         ) -> DispatchResult {
             T::ManagerOrigin::ensure_origin(origin)?;
 
             let v3_asset_loc = MultiLocation::try_from(*asset_location)
                 .map_err(|_| Error::<T>::MultiLocationNotSupported)?;
-            let asset_location = VersionedMultiLocation::V3(v3_asset_loc);
+            let asset_location = VersionedLocation::V3(v3_asset_loc);
 
             ensure!(
                 AssetLocationToId::<T>::contains_key(&asset_location),
@@ -268,14 +268,14 @@ pub mod pallet {
         #[pallet::weight(T::WeightInfo::change_existing_asset_location())]
         pub fn change_existing_asset_location(
             origin: OriginFor<T>,
-            new_asset_location: Box<VersionedMultiLocation>,
+            new_asset_location: Box<VersionedLocation>,
             #[pallet::compact] asset_id: T::AssetId,
         ) -> DispatchResult {
             T::ManagerOrigin::ensure_origin(origin)?;
 
             let v3_asset_loc = MultiLocation::try_from(*new_asset_location)
                 .map_err(|_| Error::<T>::MultiLocationNotSupported)?;
-            let new_asset_location = VersionedMultiLocation::V3(v3_asset_loc);
+            let new_asset_location = VersionedLocation::V3(v3_asset_loc);
 
             let previous_asset_location =
                 AssetIdToLocation::<T>::get(&asset_id).ok_or(Error::<T>::AssetDoesNotExist)?;
@@ -307,13 +307,13 @@ pub mod pallet {
         #[pallet::weight(T::WeightInfo::remove_payment_asset())]
         pub fn remove_payment_asset(
             origin: OriginFor<T>,
-            asset_location: Box<VersionedMultiLocation>,
+            asset_location: Box<VersionedLocation>,
         ) -> DispatchResult {
             T::ManagerOrigin::ensure_origin(origin)?;
 
             let v3_asset_loc = MultiLocation::try_from(*asset_location)
                 .map_err(|_| Error::<T>::MultiLocationNotSupported)?;
-            let asset_location = VersionedMultiLocation::V3(v3_asset_loc);
+            let asset_location = VersionedLocation::V3(v3_asset_loc);
 
             AssetLocationUnitsPerSecond::<T>::remove(&asset_location);
 

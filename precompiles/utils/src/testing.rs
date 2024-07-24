@@ -231,6 +231,17 @@ impl PrecompileHandle for MockHandle {
     fn gas_limit(&self) -> Option<u64> {
         Some(self.gas_limit)
     }
+
+    fn record_external_cost(
+        &mut self,
+        _ref_time: Option<u64>,
+        _proof_size: Option<u64>,
+        _storage_growth: Option<u64>,
+    ) -> Result<(), ExitError> {
+        Ok(())
+    }
+
+    fn refund_external_cost(&mut self, _ref_time: Option<u64>, _proof_size: Option<u64>) {}
 }
 
 pub struct PrecompilesTester<'p, P> {
