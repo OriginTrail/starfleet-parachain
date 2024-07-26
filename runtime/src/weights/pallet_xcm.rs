@@ -73,6 +73,15 @@ impl<T: frame_system::Config> pallet_xcm::WeightInfo for WeightInfo<T> {
             .saturating_add(Weight::from_parts(0, 499))
             .saturating_add(T::DbWeight::get().reads(1))
     }
+    // Storage: `Benchmark::Override` (r:0 w:0)
+	// Proof: `Benchmark::Override` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	fn transfer_assets() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 18_446_744_073_709_551 nanoseconds.
+		Weight::from_parts(18_446_744_073_709_551_000, 0)
+	}
     /// Storage: Benchmark Override (r:0 w:0)
     /// Proof Skipped: Benchmark Override (max_values: None, max_size: None, mode: Measured)
     fn execute() -> Weight {
@@ -155,6 +164,16 @@ impl<T: frame_system::Config> pallet_xcm::WeightInfo for WeightInfo<T> {
             .saturating_add(T::DbWeight::get().reads(6))
             .saturating_add(T::DbWeight::get().writes(4))
     }
+    /// Storage: PolkadotXcm XcmExecutionSuspended (r:0 w:1)
+	/// Proof Skipped: PolkadotXcm XcmExecutionSuspended (max_values: Some(1), max_size: None, mode: Measured)
+	fn force_suspension() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 3_067_000 picoseconds.
+		Weight::from_parts(3_211_000, 0)
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
     /// Storage: PolkadotXcm SupportedVersion (r:4 w:2)
     /// Proof Skipped: PolkadotXcm SupportedVersion (max_values: None, max_size: None, mode: Measured)
     fn migrate_supported_version() -> Weight {
@@ -257,4 +276,39 @@ impl<T: frame_system::Config> pallet_xcm::WeightInfo for WeightInfo<T> {
             .saturating_add(T::DbWeight::get().reads(9))
             .saturating_add(T::DbWeight::get().writes(4))
     }
+    // Storage: `PolkadotXcm::QueryCounter` (r:1 w:1)
+	// Proof: `PolkadotXcm::QueryCounter` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	// Storage: `PolkadotXcm::Queries` (r:0 w:1)
+	// Proof: `PolkadotXcm::Queries` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	fn new_query() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `1485`
+		// Minimum execution time: 2_337 nanoseconds.
+		Weight::from_parts(2_507_000, 1485)
+			.saturating_add(T::DbWeight::get().reads(1))
+			.saturating_add(T::DbWeight::get().writes(2))
+	}
+	// Storage: `PolkadotXcm::Queries` (r:1 w:1)
+	// Proof: `PolkadotXcm::Queries` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	fn take_response() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `7576`
+		//  Estimated: `11041`
+		// Minimum execution time: 19_915 nanoseconds.
+		Weight::from_parts(20_255_000, 11041)
+			.saturating_add(T::DbWeight::get().reads(1))
+			.saturating_add(T::DbWeight::get().writes(1))
+	}
+    /// Storage: `PolkadotXcm::AssetTraps` (r:1 w:1)
+	/// Proof: `PolkadotXcm::AssetTraps` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	fn claim_assets() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `24`
+		//  Estimated: `3489`
+		// Minimum execution time: 30_973_000 picoseconds.
+		Weight::from_parts(31_665_000, 3489)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
 }

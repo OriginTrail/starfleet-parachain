@@ -3,7 +3,7 @@ use super::{
     RuntimeOrigin, ParachainInfo, ParachainSystem, PolkadotXcm, WeightToFee, XcmpQueue,
 };
 use frame_support::{
-    match_types, parameter_types,
+    parameter_types,
     traits::{ConstU32, Contains, Everything, Nothing, PalletInfoAccess},
     weights::Weight,
 };
@@ -12,27 +12,28 @@ use polkadot_parachain::primitives::Sibling;
 use xcm::latest::prelude::*;
 use xcm_builder::{
     AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
-    CurrencyAdapter, EnsureXcmOrigin, FixedWeightBounds, IsConcrete, NativeAsset, ParentIsPreset,
+    FungibleAdapter, EnsureXcmOrigin, FixedWeightBounds, IsConcrete, NativeAsset, ParentIsPreset,
     RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
     SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
     UsingComponents, WithComputedOrigin,
 };
+use frame_system::EnsureRoot;
 use xcm_executor::{traits::WithOriginFilter, XcmExecutor};
 
 parameter_types! {
-    pub const RelayLocation: MultiLocation = MultiLocation::parent();
+    pub const RelayLocation: Location = Location::parent();
     pub const RelayNetwork: NetworkId = NetworkId::Polkadot;
     pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
-    pub TokenLocation: MultiLocation = MultiLocation {
+    pub TokenLocation: Location = Location {
         parents:0,
-        interior: Junctions::X1(
+        interior: [
             PalletInstance(<Balances as PalletInfoAccess>::index() as u8)
-        )
+        ].into()
     };
-    pub UniversalLocation: InteriorMultiLocation = X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
+    pub UniversalLocation: InteriorLocation = [GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into())].into();
 }
 
-/// Type for specifying how a `MultiLocation` can be converted into an `AccountId`. This is used
+/// Type for specifying how a `Location` can be converted into an `AccountId`. This is used
 /// when determining ownership of accounts for asset transacting and when attempting to use XCM
 /// `Transact` in order to determine the dispatch Origin.
 pub type LocationToAccountId = (
@@ -45,12 +46,12 @@ pub type LocationToAccountId = (
 );
 
 /// Means for transacting assets on this chain.
-pub type LocalAssetTransactor = CurrencyAdapter<
+pub type LocalAssetTransactor = FungibleAdapter<
     // Use this currency:
     Balances,
     // Use this currency when it is a fungible asset matching the given location or name:
     IsConcrete<TokenLocation>,
-    // Do a simple punn to convert an AccountId32 MultiLocation into a native chain account ID:
+    // Do a simple punn to convert an AccountId32 Location into a native chain account ID:
     LocationToAccountId,
     // Our chain's account ID type (we can't get away without mentioning it explicitly):
     AccountId,
@@ -88,11 +89,11 @@ parameter_types! {
     pub const MaxAssetsIntoHolding: u32 = 64;
 }
 
-match_types! {
-    pub type ParentOrParentsExecutivePlurality: impl Contains<MultiLocation> = {
-        MultiLocation { parents: 1, interior: Here } |
-        MultiLocation { parents: 1, interior: X1(Plurality { id: BodyId::Executive, .. }) }
-    };
+pub struct ParentOrParentsExecutivePlurality;
+impl Contains<Location> for ParentOrParentsExecutivePlurality {
+    fn contains(location: &Location) -> bool {
+        matches!(location.unpack(), (1, []) | (1, [Plurality { .. }]))
+    }
 }
 
 pub type Barrier = (
@@ -188,6 +189,8 @@ impl xcm_executor::Config for XcmConfig {
     type UniversalAliases = Nothing;
     type CallDispatcher = WithOriginFilter<SafeCallFilter>;
     type SafeCallFilter = SafeCallFilter;
+    type Aliasers = Nothing;
+    type TransactionalProcessor = ();
 }
 
 /// No local origins on this chain are allowed to dispatch XCM sends/executions.
@@ -204,7 +207,7 @@ pub type XcmRouter = (
 
 #[cfg(feature = "runtime-benchmarks")]
 parameter_types! {
-	pub ReachableDest: Option<MultiLocation> = Some(Parent.into());
+	pub ReachableDest: Option<Location> = Some(Parent.into());
 }
 
 impl pallet_xcm::Config for Runtime {
@@ -231,8 +234,11 @@ impl pallet_xcm::Config for Runtime {
     type SovereignAccountOf = LocationToAccountId;
     type MaxLockers = ConstU32<8>;
     type WeightInfo = crate::weights::pallet_xcm::WeightInfo<Runtime>;
+    type MaxRemoteLockConsumers = ConstU32<0>;
+    type RemoteLockConsumerIdentifier = ();
     #[cfg(feature = "runtime-benchmarks")]
-    type ReachableDest = ReachableDest;    
+    type ReachableDest = ReachableDest;
+    type AdminOrigin = EnsureRoot<AccountId>;
 }
 
 impl cumulus_pallet_xcm::Config for Runtime {
