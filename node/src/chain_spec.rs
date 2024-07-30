@@ -73,7 +73,7 @@ pub fn development_config() -> ChainSpec {
 		neuroweb_runtime::WASM_BINARY.expect("WASM binary was not build, please build it!"),
 		Extensions {
 			relay_chain: "rococo-local".into(), // You MUST set this to the correct network!
-			para_id: 2048,
+			para_id: 2043,
 		},
 	)
 	.with_name("Development")
@@ -106,7 +106,7 @@ pub fn development_config() -> ChainSpec {
 					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
 				],
-				2048.into(),
+				2043.into(),
 	))
 	.build()
 }
@@ -121,7 +121,7 @@ pub fn local_testnet_config() -> ChainSpec {
 		neuroweb_runtime::WASM_BINARY.expect("WASM binary was not build, please build it!"),
 		Extensions {
 			relay_chain: "rococo-local".into(), // You MUST set this to the correct network!
-			para_id: 2048,
+			para_id: 2043,
 		},
 	)
 	.with_name("NeuroWeb Testnet")
@@ -154,7 +154,7 @@ pub fn local_testnet_config() -> ChainSpec {
 					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
 				],
-				2048.into(),
+				2043.into(),
 	))
 	.build()
 }
