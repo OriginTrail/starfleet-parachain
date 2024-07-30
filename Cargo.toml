@@ -116,12 +116,10 @@ pallet-vesting = { git = "https://github.com/paritytech/polkadot-sdk", default-f
 pallet-xc-asset-config = { path = "./pallets/xc-asset-config", default-features = false }
 
 # EVM & Ethereum
-evm = { git = "https://github.com/rust-blockchain/evm", rev = "13240a8a551586fdef0b5028ed73af80b248092a" }
-evm-gasometer = { git = "https://github.com/rust-blockchain/evm", rev = "13240a8a551586fdef0b5028ed73af80b248092a", default-features = false }
-evm-runtime = { git = "https://github.com/rust-blockchain/evm", rev = "13240a8a551586fdef0b5028ed73af80b248092a", default-features = false }
-ethereum = { version = "0.14.0", default-features = false, features = [
-    "with-codec",
-] }
+evm = { version = "0.41.1", default-features = false }
+evm-gasometer = { version = "0.41.0", default-features = false }
+evm-runtime = { version = "0.41.0", default-features = false }
+ethereum = { version = "0.15.0", default-features = false }
 
 # Frontier
 pallet-base-fee = { git = "https://github.com/polkadot-evm/frontier", default-features = false, branch = "polkadot-v1.9.0" }
