@@ -37,38 +37,6 @@ use futures::StreamExt;
 use sc_client_api::BlockchainEvents;
 use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
 
-/// Extra host functions
-#[cfg(feature = "runtime-benchmarks")]
-pub type HostFunctions = (
-    frame_benchmarking::benchmarking::HostFunctions,
-    cumulus_client_service::storage_proof_size::HostFunctions,
-);
-
-/// Extra host functions
-#[cfg(not(feature = "runtime-benchmarks"))]
-pub type HostFunctions = (
-    cumulus_client_service::storage_proof_size::HostFunctions,
-);
-
-// /// Native executor type.
-// pub struct ParachainNativeExecutor;
-
-// impl sc_executor::NativeExecutionDispatch for ParachainNativeExecutor {
-// 	type ExtendHostFunctions = HostFunctions;
-
-// 	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
-// 		neuroweb_runtime::api::dispatch(method, data)
-// 	}
-
-// 	fn native_version() -> sc_executor::NativeVersion {
-// 		neuroweb_runtime::native_version()
-// 	}
-// }
-
-// type ParachainExecutor = NativeElseWasmExecutor<ParachainNativeExecutor>;
-
-// type ParachainClient = TFullClient<Block, RuntimeApi, ParachainExecutor>;
-
 type ParachainClient = TFullClient<
 	Block,
 	RuntimeApi,
