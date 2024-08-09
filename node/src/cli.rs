@@ -25,7 +25,7 @@ pub enum Subcommand {
     PurgeChain(cumulus_client_cli::PurgeChainCmd),
 
     /// Export the genesis state of the parachain.
-	ExportGenesisState(cumulus_client_cli::ExportGenesisStateCommand),
+	ExportGenesisState(cumulus_client_cli::ExportGenesisHeadCommand),
 
 	/// Export the genesis wasm of the parachain.
 	ExportGenesisWasm(cumulus_client_cli::ExportGenesisWasmCommand),
@@ -70,6 +70,14 @@ pub struct Cli {
     /// Relay chain arguments
     #[arg(raw = true)]
     pub relay_chain_args: Vec<String>,
+
+    /// Proposer's maximum block size limit in bytes
+    #[clap(long, default_value = sc_basic_authorship::DEFAULT_BLOCK_SIZE_LIMIT.to_string())]
+    pub proposer_block_size_limit: usize,
+
+    /// Proposer's soft deadline in percents of block size
+    #[clap(long, default_value = "50")]
+    pub proposer_soft_deadline_percent: u8,
 }
 
 #[derive(Debug)]
@@ -92,14 +100,11 @@ impl RelayChainCli {
     ) -> Self {
         let extension = crate::chain_spec::Extensions::try_get(&*para_config.chain_spec);
         let chain_id = extension.map(|e| e.relay_chain.clone());
-        let base_path = para_config
-            .base_path
-            .as_ref()
-            .map(|x| x.path().join("polkadot"));
+        let base_path = para_config.base_path.path().join("polkadot");
         Self {
-            base_path,
-            chain_id,
             base: clap::Parser::parse_from(relay_chain_args),
+            chain_id,
+            base_path: Some(base_path),
         }
     }
 }
