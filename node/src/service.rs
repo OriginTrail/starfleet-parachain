@@ -10,7 +10,7 @@ use neuroweb_runtime::{
 };
 
 // Cumulus Imports
-use cumulus_client_consensus_aura::collators::basic as basic_aura;
+use cumulus_client_consensus_aura::collators::lookahead::{self as aura, Params as AuraParams};
 use cumulus_client_consensus_common::{
 	ParachainBlockImport as TParachainBlockImport
 };
@@ -18,9 +18,11 @@ use cumulus_client_service::{
 	build_network, build_relay_chain_interface, prepare_node_config, DARecoveryProfile,
 	BuildNetworkParams, StartRelayChainTasksParams, start_relay_chain_tasks
 };
-use cumulus_primitives_core::ParaId;
+use cumulus_primitives_core::{
+    relay_chain::{CollatorPair, ValidationCode},
+    ParaId,
+};
 use cumulus_relay_chain_interface::RelayChainInterface;
-use polkadot_service::CollatorPair;
 
 // Substrate Imports
 use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
@@ -347,7 +349,7 @@ async fn start_node_impl(
 		task_manager: &mut task_manager,
 		config: parachain_config,
 		keystore: params.keystore_container.keystore(),
-		backend,
+		backend: backend.clone(),
 		network: network.clone(),
 		sync_service: sync_service.clone(),
 		system_rpc_tx,
@@ -411,6 +413,7 @@ async fn start_node_impl(
 	if validator {
 		start_aura_consensus(
 			client.clone(),
+			backend.clone(),
 			block_import,
 			prometheus_registry.as_ref(),
 			telemetry.as_ref().map(|t| t.handle()),
@@ -473,6 +476,7 @@ pub fn build_import_queue(
 
 fn start_aura_consensus(
 	client: Arc<ParachainClient>,
+	backend: Arc<ParachainBackend>,
 	block_import: ParachainBlockImport,
 	prometheus_registry: Option<&Registry>,
 	telemetry: Option<TelemetryHandle>,
@@ -485,8 +489,6 @@ fn start_aura_consensus(
 	collator_key: CollatorPair,
 	additional_config: AdditionalConfig,
 ) -> Result<(), sc_service::Error> {
-	let slot_duration = cumulus_client_consensus_aura::slot_duration(&*client)?;
-
 	let mut proposer_factory = sc_basic_authorship::ProposerFactory::with_proof_recording(
 		task_manager.spawn_handle(),
 		client.clone(),
@@ -516,23 +518,26 @@ fn start_aura_consensus(
         client.clone(),
     );
 
-	let fut = basic_aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _>(basic_aura::Params {
+	let fut = aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _, _, _>(AuraParams {
         create_inherent_data_providers: move |_, ()| async move { Ok(()) },
         block_import: block_import.clone(),
         para_client: client.clone(),
+		para_backend: backend.clone(),
         relay_client: relay_chain_interface.clone(),
+		code_hash_provider: move |block_hash| {
+			client.code_at(block_hash).ok().map(|c| ValidationCode::from(c).hash())
+		},
         sync_oracle: sync_oracle.clone(),
         keystore,
         collator_key,
         para_id,
         overseer_handle,
-        slot_duration,
         relay_chain_slot_duration: Duration::from_secs(6),
         proposer: cumulus_client_consensus_proposer::Proposer::new(proposer_factory),
         collator_service,
         // We got around 500ms for proposing
-        authoring_duration: Duration::from_millis(500),
-        collation_request_receiver: None,
+        authoring_duration: Duration::from_millis(1500),
+		reinitialize: false,
     });
 
 	task_manager
