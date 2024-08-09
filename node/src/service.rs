@@ -25,7 +25,7 @@ use polkadot_service::CollatorPair;
 // Substrate Imports
 use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
 use sc_consensus::ImportQueue;
-use sc_executor::NativeElseWasmExecutor;
+use sc_executor::{HeapAllocStrategy, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
 use sc_network::NetworkBlock;
 use sc_network_sync::SyncingService;
 use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient, TaskManager};
@@ -37,37 +37,15 @@ use futures::StreamExt;
 use sc_client_api::BlockchainEvents;
 use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
 
-/// Extra host functions
-#[cfg(feature = "runtime-benchmarks")]
-pub type HostFunctions = (
-    frame_benchmarking::benchmarking::HostFunctions,
-    cumulus_client_service::storage_proof_size::HostFunctions,
-);
-
-/// Extra host functions
-#[cfg(not(feature = "runtime-benchmarks"))]
-pub type HostFunctions = (
-    cumulus_client_service::storage_proof_size::HostFunctions,
-);
-
-/// Native executor type.
-pub struct ParachainNativeExecutor;
-
-impl sc_executor::NativeExecutionDispatch for ParachainNativeExecutor {
-	type ExtendHostFunctions = HostFunctions;
-
-	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
-		neuroweb_runtime::api::dispatch(method, data)
-	}
-
-	fn native_version() -> sc_executor::NativeVersion {
-		neuroweb_runtime::native_version()
-	}
-}
-
-type ParachainExecutor = NativeElseWasmExecutor<ParachainNativeExecutor>;
-
-type ParachainClient = TFullClient<Block, RuntimeApi, ParachainExecutor>;
+type ParachainClient = TFullClient<
+	Block,
+	RuntimeApi,
+	WasmExecutor<(
+		sp_io::SubstrateHostFunctions,
+		frame_benchmarking::benchmarking::HostFunctions,
+		cumulus_client_service::storage_proof_size::HostFunctions,
+	)>,
+>;
 
 type ParachainBackend = TFullBackend<Block>;
 
@@ -143,7 +121,19 @@ pub fn new_partial(
 		})
 		.transpose()?;
 
-	let executor = sc_service::new_native_or_wasm_executor(&config);
+	let heap_pages = config
+		.default_heap_pages
+		.map_or(DEFAULT_HEAP_ALLOC_STRATEGY, |h| HeapAllocStrategy::Static {
+			extra_pages: h as _,
+		});
+
+	let executor = WasmExecutor::builder()
+		.with_execution_method(config.wasm_method)
+		.with_onchain_heap_alloc_strategy(heap_pages)
+		.with_offchain_heap_alloc_strategy(heap_pages)
+		.with_max_runtime_instances(config.max_runtime_instances)
+		.with_runtime_cache_size(config.runtime_cache_size)
+		.build();
 
 	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts_record_import::<Block, RuntimeApi, _>(
