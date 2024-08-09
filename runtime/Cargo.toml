@@ -72,9 +72,10 @@ xcm-executor = { workspace = true }
 # Cumulus
 cumulus-pallet-aura-ext = { workspace = true }
 cumulus-pallet-dmp-queue = { workspace = true }
-cumulus-pallet-parachain-system = { workspace = true }
+cumulus-pallet-parachain-system = { workspace = true, features = ["parameterized-consensus-hook"] }
 cumulus-pallet-xcm = { workspace = true }
 cumulus-pallet-xcmp-queue = { workspace = true }
+cumulus-primitives-aura = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 cumulus-primitives-storage-weight-reclaim = { workspace = true }
 cumulus-primitives-timestamp = { workspace = true }
@@ -112,6 +113,7 @@ std = [
 	"cumulus-pallet-parachain-system/std",
 	"cumulus-pallet-xcm/std",
 	"cumulus-pallet-xcmp-queue/std",
+	"cumulus-primitives-aura/std",
 	"cumulus-primitives-core/std",
 	"cumulus-primitives-timestamp/std",
 	"cumulus-primitives-utility/std",
