@@ -6,7 +6,7 @@ use std::{sync::Arc, time::Duration, collections::BTreeMap};
 use cumulus_client_cli::CollatorOptions;
 // Local Runtime Types
 use neuroweb_runtime::{
-	opaque::Block, RuntimeApi,
+	opaque::Block, RuntimeApi, Hash
 };
 
 // Cumulus Imports
@@ -26,7 +26,7 @@ use polkadot_service::CollatorPair;
 use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
 use sc_consensus::ImportQueue;
 use sc_executor::{HeapAllocStrategy, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
-use sc_network::NetworkBlock;
+use sc_network::{NetworkBackend, NetworkBlock};
 use sc_network_sync::SyncingService;
 use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryHandle, TelemetryWorker, TelemetryWorkerHandle};
@@ -36,6 +36,7 @@ use substrate_prometheus_endpoint::Registry;
 use futures::StreamExt;
 use sc_client_api::BlockchainEvents;
 use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
+use fc_storage::StorageOverrideHandler;
 
 type ParachainClient = TFullClient<
 	Block,
@@ -66,14 +67,14 @@ pub struct AdditionalConfig {
 pub fn open_frontier_backend<C>(
     client: Arc<C>,
     config: &sc_service::Configuration,
-) -> Result<Arc<fc_db::kv::Backend<Block>>, String>
+) -> Result<Arc<fc_db::kv::Backend<Block, C>>, String>
 where
     C: sp_blockchain::HeaderBackend<Block>,
 {
     let config_dir = config.base_path.config_dir(config.chain_spec.id());
     let path = config_dir.join("frontier").join("db");
 
-    Ok(Arc::new(fc_db::kv::Backend::<Block>::new(
+    Ok(Arc::new(fc_db::kv::Backend::<Block, C>::new(
         client,
         &fc_db::kv::DatabaseSettings {
             source: fc_db::DatabaseSource::RocksDb {
@@ -105,7 +106,7 @@ pub fn new_partial(
 			ParachainBlockImport,
 			Option<Telemetry>, 
 			Option<TelemetryWorkerHandle>, 
-			Arc<fc_db::kv::Backend<Block>>,
+			Arc<fc_db::kv::Backend<Block, ParachainClient>>,
 		),
 	>,
 	sc_service::Error,
@@ -187,7 +188,7 @@ pub fn new_partial(
 ///
 /// This is the actual implementation that is abstract over the executor and the runtime api.
 #[sc_tracing::logging::prefix_logs_with("Parachain")]
-async fn start_node_impl(
+async fn start_node_impl<N>(
 	parachain_config: Configuration,
 	polkadot_config: Configuration,
 	collator_options: CollatorOptions,
@@ -197,7 +198,9 @@ async fn start_node_impl(
 ) -> sc_service::error::Result<(
 	TaskManager,
 	Arc<ParachainClient>,
-)> {
+)> 
+where N: NetworkBackend<Block, Hash>,
+{
 
 	let parachain_config = prepare_node_config(parachain_config);
 
@@ -224,7 +227,7 @@ async fn start_node_impl(
 	let is_authority = parachain_config.role.is_authority();
 	let transaction_pool = params.transaction_pool.clone();
 	let import_queue_service = params.import_queue.service();
-	let net_config = sc_network::config::FullNetworkConfiguration::new(&parachain_config.network);
+	let net_config = sc_network::config::FullNetworkConfiguration::<_, _, N>::new(&parachain_config.network);
 
 	let (network, system_rpc_tx, tx_handler_controller, start_network, sync_service) =
 		build_network(BuildNetworkParams {
@@ -242,7 +245,7 @@ async fn start_node_impl(
 
 	let filter_pool: FilterPool = Arc::new(std::sync::Mutex::new(BTreeMap::new()));
 	let fee_history_cache: FeeHistoryCache = Arc::new(std::sync::Mutex::new(BTreeMap::new()));
-	let overrides = fc_storage::overrides_handle(client.clone());
+	let storage_override = Arc::new(StorageOverrideHandler::new(client.clone()));
 
     // Sinks for pubsub notifications.
     // Everytime a new subscription is created, a new mpsc channel is added to the sink pool.
@@ -263,7 +266,7 @@ async fn start_node_impl(
             Duration::new(6, 0),
             client.clone(),
             backend.clone(),
-			overrides.clone(),
+						storage_override.clone(),
             frontier_backend.clone(),
             3,
             0,
@@ -293,16 +296,16 @@ async fn start_node_impl(
         Some("frontier"),
         fc_rpc::EthTask::fee_history_task(
             client.clone(),
-            overrides.clone(),
-            fee_history_cache.clone(),
+            storage_override.clone(),
+						fee_history_cache.clone(),
             FEE_HISTORY_LIMIT,
         ),
     );
 
 	let block_data_cache = Arc::new(fc_rpc::EthBlockDataCacheTask::new(
         task_manager.spawn_handle(),
-        overrides.clone(),
-        50,
+        storage_override.clone(),
+				50,
         50,
         prometheus_registry.clone(),
     ));
@@ -317,19 +320,19 @@ async fn start_node_impl(
 
 		Box::new(move |deny_unsafe, subscription_task_executor| {
 			let deps = crate::rpc::FullDeps {
-				client: client.clone(),
-				pool: transaction_pool.clone(),
-				graph: transaction_pool.pool().clone(),
-				sync: sync.clone(),
-				deny_unsafe,
-				is_authority,
-				network: network.clone(),
-				backend: frontier_backend.clone(),
-				filter_pool: filter_pool.clone(),
-				fee_history_cache_limit: FEE_HISTORY_LIMIT,
-                fee_history_cache: fee_history_cache.clone(),
-				overrides: overrides.clone(),
-				block_data_cache: block_data_cache.clone(),
+					client: client.clone(),
+					pool: transaction_pool.clone(),
+					graph: transaction_pool.pool().clone(),
+					sync: sync.clone(),
+					deny_unsafe,
+					is_authority,
+					network: network.clone(),
+					backend: frontier_backend.clone(),
+					filter_pool: filter_pool.clone(),
+					fee_history_cache_limit: FEE_HISTORY_LIMIT,
+					fee_history_cache: fee_history_cache.clone(),
+					storage_override: storage_override.clone(),
+					block_data_cache: block_data_cache.clone(),
 			};
 
 			let pending_consensus_data_provider = Box::new(
@@ -485,7 +488,6 @@ fn start_aura_consensus(
 	collator_key: CollatorPair,
 	additional_config: AdditionalConfig,
 ) -> Result<(), sc_service::Error> {
-	let slot_duration = cumulus_client_consensus_aura::slot_duration(&*client)?;
 
 	let mut proposer_factory = sc_basic_authorship::ProposerFactory::with_proof_recording(
 		task_manager.spawn_handle(),
@@ -526,7 +528,6 @@ fn start_aura_consensus(
         collator_key,
         para_id,
         overseer_handle,
-        slot_duration,
         relay_chain_slot_duration: Duration::from_secs(6),
         proposer: cumulus_client_consensus_proposer::Proposer::new(proposer_factory),
         collator_service,
@@ -554,5 +555,5 @@ pub async fn start_parachain_node(
 	TaskManager,
 	Arc<ParachainClient>,
 )> {
-	start_node_impl(parachain_config, polkadot_config, collator_options, para_id, hwbench, additional_config.clone()).await
+	start_node_impl::<sc_network::NetworkWorker<_, _>>(parachain_config, polkadot_config, collator_options, para_id, hwbench, additional_config.clone()).await
 }
