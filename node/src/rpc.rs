@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 
-use neuroweb_runtime::{opaque::Block, AccountId, Balance, Hash, Nonce};
+use neuroweb_runtime::{opaque::Block, AccountId, Balance, Nonce};
 use cumulus_primitives_parachain_inherent::ParachainInherentData;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
 use polkadot_primitives::PersistedValidationData;

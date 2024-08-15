@@ -488,7 +488,6 @@ fn start_aura_consensus(
 	collator_key: CollatorPair,
 	additional_config: AdditionalConfig,
 ) -> Result<(), sc_service::Error> {
-	let slot_duration = cumulus_client_consensus_aura::slot_duration(&*client)?;
 
 	let mut proposer_factory = sc_basic_authorship::ProposerFactory::with_proof_recording(
 		task_manager.spawn_handle(),
