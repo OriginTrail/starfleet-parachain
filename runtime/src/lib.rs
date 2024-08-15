@@ -386,8 +386,6 @@ impl OnUnbalanced<Credit<AccountId, Balances>> for DealWithFees
             let (dkg_incentives_fees, collators_incentives_fees) = split.0.ration(50, 50);
             let (future_auctions_fees, treasury_fees) = split.1.ration(75, 25);
 
-            // ResolveTo::<TreasuryAccount<R>, pallet_balances::~<R>>::on_unbalanced(treasury_fees);
-            // Treasury::on_unbalanced(treasury_fees);
             <TreasuryPot as OnUnbalanced<_>>::on_unbalanced(treasury_fees);
             <ToStakingPot as OnUnbalanced<_>>::on_unbalanced(collators_incentives_fees);
             <FutureAuctionsPot as OnUnbalanced<_>>::on_unbalanced(future_auctions_fees);
@@ -403,8 +401,6 @@ impl OnUnbalanced<Credit<AccountId, Balances>> for DealWithFees
         let (future_auctions_fees, treasury_fees) = split.1.ration(75, 25);
 
 
-        // ResolveTo::<TreasuryAccount<R>, pallet_balances::Pallet<R>>::on_unbalanced(treasury_fees);
-        // Treasury::on_unbalanced(treasury_fees);
         <TreasuryPot as OnUnbalanced<_>>::on_unbalanced(treasury_fees);
         <ToStakingPot as OnUnbalanced<_>>::on_unbalanced(collators_incentives_fees);
         <FutureAuctionsPot as OnUnbalanced<_>>::on_unbalanced(future_auctions_fees);
@@ -706,15 +702,9 @@ impl pallet_base_fee::Config for Runtime {
 }
 
 type FungibleAccountId<T> = <T as frame_system::Config>::AccountId;
-// How should this be 
+
 type BalanceFor<T> = 
     <<T as pallet_evm::Config>::Currency as Inspect<FungibleAccountId<T>>>::Balance;
-
-// type PositiveImbalanceFor<T> =
-// 			<<T as pallet_evm::Config>::Currency as PalletCurrency<FungibleAccountId<T>>>::PositiveImbalance;
-
-// type NegativeImbalanceFor<T> =
-// 			<<T as pallet_evm::Config>::Currency as PalletCurrency<FungibleAccountId<T>>>::NegativeImbalance;
 
 pub struct OnChargeEVMTransaction<OU>(sp_std::marker::PhantomData<OU>);
 impl<T, OU> OnChargeEVMTransactionT<T> for OnChargeEVMTransaction<OU>
@@ -725,7 +715,6 @@ where
 	U256: UniqueSaturatedInto<BalanceFor<T>>
 {
 	type LiquidityInfo = Option<Credit<T::AccountId, T::Currency>>;
-    // type LiquidityInfo = Option<NegativeImbalanceFor<T>>;
 
 	fn withdraw_fee(who: &H160, fee: U256) -> Result<Self::LiquidityInfo, pallet_evm::Error<T>> {
 		EVMFungibleAdapter::<<T as pallet_evm::Config>::Currency, ()>::withdraw_fee(who, fee)

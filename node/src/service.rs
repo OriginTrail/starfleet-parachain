@@ -528,7 +528,6 @@ fn start_aura_consensus(
         collator_key,
         para_id,
         overseer_handle,
-        // slot_duration,
         relay_chain_slot_duration: Duration::from_secs(6),
         proposer: cumulus_client_consensus_proposer::Proposer::new(proposer_factory),
         collator_service,
