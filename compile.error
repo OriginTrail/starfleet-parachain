@@ -1,0 +1,212 @@
+⚡ Found 3 strongly connected components which includes at least one cycle each
+cycle(001) ∈ α: DisputeCoordinator ~~{"DisputeDistributionMessage"}~~> DisputeDistribution ~~{"DisputeCoordinatorMessage"}~~>  *
+cycle(002) ∈ β: CandidateBacking ~~{"CollatorProtocolMessage"}~~> CollatorProtocol ~~{"CandidateBackingMessage"}~~>  *
+cycle(003) ∈ γ: NetworkBridgeRx ~~{"GossipSupportMessage"}~~> GossipSupport ~~{"NetworkBridgeRxMessage"}~~>  *
+   Compiling neuroweb-runtime v1.4.0 (/Users/mihajlopavlovic/Documents/neuroweb/runtime)
+error: failed to run custom build command for `neuroweb-runtime v1.4.0 (/Users/mihajlopavlovic/Documents/neuroweb/runtime)`
+
+Caused by:
+  process didn't exit successfully: `/Users/mihajlopavlovic/Documents/neuroweb/target/debug/build/neuroweb-runtime-ed61471f7bca0f71/build-script-build` (exit status: 1)
+  --- stdout
+  Information that should be included in a bug report.
+  Executing build command: env -u CARGO_ENCODED_RUSTFLAGS -u RUSTC CARGO_TARGET_DIR="/Users/mihajlopavlovic/Documents/neuroweb/target/debug/wbuild/neuroweb-runtime/target" RUSTFLAGS="-C target-cpu=mvp -C target-feature=-sign-ext -C link-arg=--export-table -Clink-arg=--export=__heap_base -C link-arg=--import-memory  --cfg substrate_runtime " SKIP_WASM_BUILD="" "/Users/mihajlopavlovic/.rustup/toolchains/nightly-2024-04-15-aarch64-apple-darwin/bin/cargo" "rustc" "--target=wasm32-unknown-unknown" "--manifest-path=/Users/mihajlopavlovic/Documents/neuroweb/target/debug/wbuild/neuroweb-runtime/Cargo.toml" "--color=always" "--profile" "release" "-Z" "build-std"
+  Using rustc version: rustc 1.79.0-nightly (0d8b3346a 2024-04-14)
+
+
+  --- stderr
+       Locking 1 package
+        Adding neuroweb-runtime-blob v1.0.0 (/Users/mihajlopavlovic/Documents/neuroweb/target/debug/wbuild/neuroweb-runtime)
+  warning: unstable feature specified for `-Ctarget-feature`: `sign-ext`
+    |
+    = note: this feature is not stably supported; its behavior can change in the future
+
+  warning: `precompile-utils` (lib) generated 1 warning
+  warning: `pallet-evm-precompile-assets-erc20` (lib) generated 1 warning (1 duplicate)
+     Compiling neuroweb-runtime v1.4.0 (/Users/mihajlopavlovic/Documents/neuroweb/runtime)
+  warning: `pallet-evm-accounts` (lib) generated 1 warning (1 duplicate)
+  warning: `pallet-xc-asset-config` (lib) generated 1 warning (1 duplicate)
+  error: expected one of `!`, `(`, `+`, `,`, `::`, `<`, or `>`, found `)`
+     --> /Users/mihajlopavlovic/Documents/neuroweb/runtime/src/lib.rs:387:64
+      |
+  387 |     fn on_nonzero_unbalanced(amount: Credit<AccountId, Balances) {
+      |                                                                ^ expected one of 7 possible tokens
+      |
+  help: you might have meant to end the type parameters here
+      |
+  387 |     fn on_nonzero_unbalanced(amount: Credit<AccountId, Balances>) {
+      |                                                                +
+
+  error: expected one of `:`, `@`, or `|`, found `)`
+     --> /Users/mihajlopavlovic/Documents/neuroweb/runtime/src/lib.rs:387:64
+      |
+  387 |     fn on_nonzero_unbalanced(amount: Credit<AccountId, Balances) {
+      |                                                                ^ expected one of `:`, `@`, or `|`
+      |
+      = note: anonymous parameters are removed in the 2018 edition (see RFC 1685)
+  help: if this is a parameter name, give it a type
+      |
+  387 |     fn on_nonzero_unbalanced(amount: Credit<AccountId, Balances: TypeName) {
+      |                                                                ++++++++++
+  help: if this is a type, explicitly ignore the parameter name
+      |
+  387 |     fn on_nonzero_unbalanced(amount: Credit<AccountId, _: Balances) {
+      |                                                        ++
+
+  error[E0425]: cannot find value `amount` in this scope
+     --> /Users/mihajlopavlovic/Documents/neuroweb/runtime/src/lib.rs:388:21
+      |
+  388 |         let split = amount.ration(60, 40);
+      |                     ^^^^^^ not found in this scope
+
+  error[E0107]: struct takes 0 generic arguments but 1 generic argument was supplied
+     --> /Users/mihajlopavlovic/Documents/neuroweb/runtime/src/lib.rs:408:86
+      |
+  408 |     type OnChargeTransaction = pallet_transaction_payment::FungibleAdapter<Balances, DealWithFees<Runtime>>;
+      |                                                                                      ^^^^^^^^^^^^--------- help: remove these generics
+      |                                                                                      |
+      |                                                                                      expected 0 generic arguments
+      |
+  note: struct defined here, with 0 generic parameters
+     --> /Users/mihajlopavlovic/Documents/neuroweb/runtime/src/lib.rs:360:12
+      |
+  360 | pub struct DealWithFees;
+      |            ^^^^^^^^^^^^
+
+  error[E0050]: method `on_nonzero_unbalanced` has 2 parameters but the declaration in trait `on_nonzero_unbalanced` has 1
+     --> /Users/mihajlopavlovic/Documents/neuroweb/runtime/src/lib.rs:387:45
+      |
+  387 |     fn on_nonzero_unbalanced(amount: Credit<AccountId, Balances) {
+      |                                             ^^^^^^^^^^^^^^^^^^^ expected 1 parameter, found 2
+      |
+      = note: `on_nonzero_unbalanced` from trait: `fn(Imbalance)`
+
+  error[E0107]: struct takes 0 generic arguments but 1 generic argument was supplied
+     --> /Users/mihajlopavlovic/Documents/neuroweb/runtime/src/lib.rs:792:52
+      |
+  792 |     type OnChargeTransaction = OnChargeEVMTransaction<DealWithFees<Runtime>>;
+      |                                                       ^^^^^^^^^^^^--------- help: remove these generics
+      |                                                       |
+      |                                                       expected 0 generic arguments
+      |
+  note: struct defined here, with 0 generic parameters
+     --> /Users/mihajlopavlovic/Documents/neuroweb/runtime/src/lib.rs:360:12
+      |
+  360 | pub struct DealWithFees;
+      |            ^^^^^^^^^^^^
+
+  error[E0046]: not all trait items implemented, missing: `HrmpNewChannelOpenRequestHandler`, `HrmpChannelAcceptedHandler`, `HrmpChannelClosingHandler`
+     --> /Users/mihajlopavlovic/Documents/neuroweb/runtime/src/xcm_config.rs:166:1
+      |
+  166 | impl xcm_executor::Config for XcmConfig {
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `HrmpNewChannelOpenRequestHandler`, `HrmpChannelAcceptedHandler`, `HrmpChannelClosingHandler` in implementation
+      |
+      = help: implement the missing item: `type HrmpNewChannelOpenRequestHandler = /* Type */;`
+      = help: implement the missing item: `type HrmpChannelAcceptedHandler = /* Type */;`
+      = help: implement the missing item: `type HrmpChannelClosingHandler = /* Type */;`
+
+  error[E0308]: mismatched types
+     --> /Users/mihajlopavlovic/Documents/neuroweb/runtime/src/lib.rs:339:50
+      |
+  339 |         Balances::resolve_creating(&staking_pot, amount);
+      |         --------------------------               ^^^^^^ expected `NegativeImbalance<Runtime>`, found `Imbalance<u128, ..., ...>`
+      |         |
+      |         arguments to this function are incorrect
+      |
+      = note: expected struct `NegativeImbalance<Runtime>`
+                 found struct `Imbalance<u128, DecreaseIssuance<AccountId32, Pallet<Runtime>>, IncreaseIssuance<AccountId32, Pallet<...>>>`
+      = note: the full type name has been written to '/Users/mihajlopavlovic/Documents/neuroweb/target/debug/wbuild/neuroweb-runtime/target/wasm32-unknown-unknown/release/deps/neuroweb_runtime-d56a7cb9cef1d6ca.long-type-12435548542650385194.txt'
+      = note: consider using `--verbose` to print the full type name to the console
+  note: associated function defined here
+     --> /Users/mihajlopavlovic/.cargo/git/checkouts/polkadot-sdk-cff69157b985ed76/8c8edac/substrate/frame/support/src/traits/tokens/currency.rs:170:5
+      |
+  170 |     fn resolve_creating(who: &AccountId, value: Self::NegativeImbalance) {
+      |        ^^^^^^^^^^^^^^^^
+
+  error[E0308]: mismatched types
+     --> /Users/mihajlopavlovic/Documents/neuroweb/runtime/src/lib.rs:347:58
+      |
+  347 |         Balances::resolve_creating(&future_auctions_pot, amount);
+      |         --------------------------                       ^^^^^^ expected `NegativeImbalance<Runtime>`, found `Imbalance<u128, ..., ...>`
+      |         |
+      |         arguments to this function are incorrect
+      |
+      = note: expected struct `NegativeImbalance<Runtime>`
+                 found struct `Imbalance<u128, DecreaseIssuance<AccountId32, Pallet<Runtime>>, IncreaseIssuance<AccountId32, Pallet<...>>>`
+      = note: the full type name has been written to '/Users/mihajlopavlovic/Documents/neuroweb/target/debug/wbuild/neuroweb-runtime/target/wasm32-unknown-unknown/release/deps/neuroweb_runtime-d56a7cb9cef1d6ca.long-type-12435548542650385194.txt'
+      = note: consider using `--verbose` to print the full type name to the console
+  note: associated function defined here
+     --> /Users/mihajlopavlovic/.cargo/git/checkouts/polkadot-sdk-cff69157b985ed76/8c8edac/substrate/frame/support/src/traits/tokens/currency.rs:170:5
+      |
+  170 |     fn resolve_creating(who: &AccountId, value: Self::NegativeImbalance) {
+      |        ^^^^^^^^^^^^^^^^
+
+  error[E0308]: mismatched types
+     --> /Users/mihajlopavlovic/Documents/neuroweb/runtime/src/lib.rs:355:57
+      |
+  355 |         Balances::resolve_creating(&dkg_incentives_pot, amount);
+      |         --------------------------                      ^^^^^^ expected `NegativeImbalance<Runtime>`, found `Imbalance<u128, ..., ...>`
+      |         |
+      |         arguments to this function are incorrect
+      |
+      = note: expected struct `NegativeImbalance<Runtime>`
+                 found struct `Imbalance<u128, DecreaseIssuance<AccountId32, Pallet<Runtime>>, IncreaseIssuance<AccountId32, Pallet<...>>>`
+      = note: the full type name has been written to '/Users/mihajlopavlovic/Documents/neuroweb/target/debug/wbuild/neuroweb-runtime/target/wasm32-unknown-unknown/release/deps/neuroweb_runtime-d56a7cb9cef1d6ca.long-type-12435548542650385194.txt'
+      = note: consider using `--verbose` to print the full type name to the console
+  note: associated function defined here
+     --> /Users/mihajlopavlovic/.cargo/git/checkouts/polkadot-sdk-cff69157b985ed76/8c8edac/substrate/frame/support/src/traits/tokens/currency.rs:170:5
+      |
+  170 |     fn resolve_creating(who: &AccountId, value: Self::NegativeImbalance) {
+      |        ^^^^^^^^^^^^^^^^
+
+  error[E0308]: mismatched types
+     --> /Users/mihajlopavlovic/Documents/neuroweb/runtime/src/lib.rs:378:37
+      |
+  378 |             Treasury::on_unbalanced(treasury_fees);
+      |             ----------------------- ^^^^^^^^^^^^^ expected `NegativeImbalance<Runtime>`, found `Imbalance<u128, ..., ...>`
+      |             |
+      |             arguments to this function are incorrect
+      |
+      = note: expected struct `NegativeImbalance<Runtime>`
+                 found struct `Imbalance<u128, DecreaseIssuance<AccountId32, Pallet<Runtime>>, IncreaseIssuance<AccountId32, Pallet<...>>>`
+      = note: the full type name has been written to '/Users/mihajlopavlovic/Documents/neuroweb/target/debug/wbuild/neuroweb-runtime/target/wasm32-unknown-unknown/release/deps/neuroweb_runtime-d56a7cb9cef1d6ca.long-type-12435548542650385194.txt'
+      = note: consider using `--verbose` to print the full type name to the console
+  note: associated function defined here
+     --> /Users/mihajlopavlovic/.cargo/git/checkouts/polkadot-sdk-cff69157b985ed76/8c8edac/substrate/frame/support/src/traits/tokens/imbalance/on_unbalanced.rs:46:5
+      |
+  46  |     fn on_unbalanced(amount: Imbalance) {
+      |        ^^^^^^^^^^^^^
+
+  error[E0599]: no function or associated item named `authorities` found for struct `pallet_aura::Pallet` in the current scope
+     --> /Users/mihajlopavlovic/Documents/neuroweb/runtime/src/lib.rs:755:38
+      |
+  755 |             let authority_id = Aura::authorities()[author_index as usize].clone();
+      |                                      ^^^^^^^^^^^ function or associated item not found in `Pallet<Runtime>`
+      |
+  help: there is an associated function `authorities_len` with a similar name
+      |
+  755 |             let authority_id = Aura::authorities_len()[author_index as usize].clone();
+      |                                      ~~~~~~~~~~~~~~~
+
+  error[E0599]: no function or associated item named `authorities` found for struct `pallet_aura::Pallet` in the current scope
+      --> /Users/mihajlopavlovic/Documents/neuroweb/runtime/src/lib.rs:1314:19
+       |
+  1314 |             Aura::authorities().into_inner()
+       |                   ^^^^^^^^^^^ function or associated item not found in `Pallet<Runtime>`
+       |
+  help: there is an associated function `authorities_len` with a similar name
+       |
+  1314 |             Aura::authorities_len().into_inner()
+       |                   ~~~~~~~~~~~~~~~
+
+  warning: unused import: `Balanced`
+    --> /Users/mihajlopavlovic/Documents/neuroweb/runtime/src/lib.rs:41:20
+     |
+  41 |         fungible::{Balanced, Credit},
+     |                    ^^^^^^^^
+     |
+     = note: `#[warn(unused_imports)]` on by default
+
+  Some errors have detailed explanations: E0046, E0050, E0107, E0308, E0425, E0599.
+  For more information about an error, try `rustc --explain E0046`.
+  warning: `neuroweb-runtime` (lib) generated 1 warning
+  error: could not compile `neuroweb-runtime` (lib) due to 13 previous errors; 1 warning emitted

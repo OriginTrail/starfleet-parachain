@@ -16,7 +16,7 @@ use sc_client_api::{
 };
 pub use sc_rpc::{DenyUnsafe, SubscriptionTaskExecutor};
 use fc_rpc::{
-	pending::ConsensusDataProvider, EthBlockDataCacheTask, OverrideHandle, EthFilter, EthFilterApiServer, EthPubSub,
+	pending::ConsensusDataProvider, EthBlockDataCacheTask, EthFilter, EthFilterApiServer, EthPubSub,
     EthPubSubApiServer, Web3, Web3ApiServer,
 };
 use sp_consensus_aura::{sr25519::AuthorityId as AuraId, AuraApi};
@@ -28,7 +28,8 @@ use sc_transaction_pool_api::TransactionPool;
 use sp_api::{CallApiAt, ProvideRuntimeApi};
 use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
-use sc_network::NetworkService;
+use sc_network::service::traits::NetworkService;
+use fc_storage::StorageOverride;
 
 /// A type representing all RPC extensions.
 pub type RpcExtension = jsonrpsee::RpcModule<()>;
@@ -48,8 +49,8 @@ pub struct FullDeps<C, P, A: ChainApi> {
 	/// The Node authority flag
     pub is_authority: bool,
 	/// Network service
-	pub network: Arc<NetworkService<Block, Hash>>,
-	/// Backend.
+	pub network: Arc<dyn NetworkService>,
+		/// Backend.
 	pub backend: Arc<dyn fc_api::Backend<Block>>,
 	/// EthFilterApi pool.
     pub filter_pool: FilterPool,
@@ -57,9 +58,9 @@ pub struct FullDeps<C, P, A: ChainApi> {
     pub fee_history_cache_limit: u64,
     /// Fee history cache.
     pub fee_history_cache: FeeHistoryCache,
-	/// Ethereum data access overrides.
-	pub overrides: Arc<OverrideHandle<Block>>,
-    /// Cache for Ethereum block data.
+	/// Ethereum data access storage_override.
+	pub storage_override: Arc<dyn StorageOverride<Block>>,
+	    /// Cache for Ethereum block data.
 	pub block_data_cache: Arc<EthBlockDataCacheTask<Block>>,
 }
 
@@ -104,7 +105,7 @@ where
 
 	let mut module = RpcExtension::new(());
 	let FullDeps { client, pool, graph, deny_unsafe, network, backend, is_authority, filter_pool,
-		sync, fee_history_cache, fee_history_cache_limit, overrides, block_data_cache
+		sync, fee_history_cache, fee_history_cache_limit, storage_override, block_data_cache
 	} = deps;
 
 	module.merge(System::new(client.clone(), pool.clone(), deny_unsafe).into_rpc())?;
@@ -152,7 +153,7 @@ where
             no_tx_converter,
             sync.clone(),
             signers,
-            overrides.clone(),
+            storage_override.clone(),
 			backend.clone(),
             is_authority,
             block_data_cache.clone(),
@@ -199,7 +200,7 @@ where
             client.clone(),
             sync,
             subscription_task_executor,
-            overrides,
+            storage_override,
             pubsub_notification_sinks,
         )
         .into_rpc(),
