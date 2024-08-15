@@ -6476,6 +6476,7 @@ dependencies = [
  "pallet-proxy",
  "pallet-scheduler",
  "pallet-session",
+ "pallet-sudo",
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
