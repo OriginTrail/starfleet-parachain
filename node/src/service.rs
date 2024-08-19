@@ -20,7 +20,9 @@ use cumulus_client_service::{
 };
 use cumulus_primitives_core::ParaId;
 use cumulus_relay_chain_interface::RelayChainInterface;
-use polkadot_service::CollatorPair;
+// Changed when moonbeam polkadot sdk used for communication fix
+use cumulus_primitives_core::relay_chain::CollatorPair;
+// use polkadot_service::CollatorPair;
 
 // Substrate Imports
 use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
