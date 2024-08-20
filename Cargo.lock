@@ -6615,7 +6615,7 @@ dependencies = [
 
 [[package]]
 name = "neuroweb-node"
-version = "1.11.0"
+version = "1.5.0"
 dependencies = [
  "clap",
  "cumulus-client-cli",
@@ -6687,7 +6687,7 @@ dependencies = [
 
 [[package]]
 name = "neuroweb-runtime"
-version = "1.11.0"
+version = "1.5.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
