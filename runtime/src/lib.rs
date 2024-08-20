@@ -565,7 +565,7 @@ impl pallet_aura::Config for Runtime {
     type MaxAuthorities = ConstU32<100_000>;
     // Should be only enabled (`true`) when async backing is enabled
     // otherwise set to `false`
-    type AllowMultipleBlocksPerSlot = ConstBool<false>;
+    type AllowMultipleBlocksPerSlot = ConstBool<true>;
     type SlotDuration = ConstU64<SLOT_DURATION>;
 }
 
