@@ -1133,11 +1133,6 @@ impl pallet_proxy::Config for Runtime {
 	type AnnouncementDepositFactor = AnnouncementDepositFactor;
 }
 
-impl pallet_sudo::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type RuntimeCall = RuntimeCall;
-    type WeightInfo = pallet_sudo::weights::SubstrateWeight<Runtime>;
-}
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
@@ -1189,8 +1184,6 @@ construct_runtime!(
         Democracy: pallet_democracy = 63,
         Identity: pallet_identity = 64,
 
-        // Temporary.
-        Sudo: pallet_sudo = 255,
     }
 );
 
