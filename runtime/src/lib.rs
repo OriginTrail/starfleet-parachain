@@ -9,7 +9,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 mod weights;
 pub mod xcm_config;
 
-use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
+use cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
 use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H160, H256, U256};
@@ -34,10 +34,10 @@ use sp_version::RuntimeVersion;
 use codec::{Encode, Decode, MaxEncodedLen};
 use frame_support::{
     construct_runtime, parameter_types, transactional,
-    genesis_builder_helper::{build_config, create_default_config},
+    genesis_builder_helper::{build_state, get_preset},
     traits::{
-        fungible::HoldConsideration,
         tokens::{PayFromAccount, UnityAssetBalanceConversion},
+        fungible::{Balanced, Credit, HoldConsideration, Inspect},
         AsEnsureOriginWithArg, Currency as PalletCurrency, EqualPrivilegeOnly, EitherOfDiverse, 
         Everything, FindAuthor, ReservableCurrency, Imbalance, InstanceFilter, OnUnbalanced, ConstBool,
         ConstU128, ConstU32, ConstU64, ConstU8, WithdrawReasons, OnFinalize, LinearStoragePrice,
@@ -74,7 +74,7 @@ use xcm::latest::prelude::BodyId;
 
 // Frontier
 use pallet_evm::{
-	EnsureAddressRoot, EnsureAddressNever, Account as EVMAccount, EVMCurrencyAdapter,
+	EnsureAddressRoot, EnsureAddressNever, Account as EVMAccount, EVMFungibleAdapter,
     FeeCalculator, OnChargeEVMTransaction as OnChargeEVMTransactionT, Runner
 };
 use pallet_ethereum::{Call::transact, PostLogContent, EthereumBlockHashMapping, Transaction as EthereumTransaction};
@@ -147,6 +147,15 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     transaction_version: 1,
     state_version: 1,
 };
+
+/// Maximum number of blocks simultaneously accepted by the Runtime, not yet included into the
+/// relay chain.
+pub const UNINCLUDED_SEGMENT_CAPACITY: u32 = 1;
+/// How many parachain blocks are processed by the relay chain per parent. Limits the number of
+/// blocks authored per slot.
+pub const BLOCK_PROCESSING_VELOCITY: u32 = 1;
+/// Relay chain slot duration, in milliseconds.
+pub const RELAY_CHAIN_SLOT_DURATION_MILLIS: u32 = 6000;
 
 /// This determines the average expected block time that we are targeting.
 /// Blocks will be produced at a minimum duration defined by `SLOT_DURATION`.
@@ -332,35 +341,47 @@ impl pallet_balances::Config for Runtime {
 }
 
 pub struct ToStakingPot;
-impl OnUnbalanced<NegativeImbalance> for ToStakingPot {
-    fn on_nonzero_unbalanced(amount: NegativeImbalance) {
+impl OnUnbalanced<Credit<AccountId, Balances>> for ToStakingPot
+{
+    fn on_nonzero_unbalanced(amount: Credit<AccountId, Balances>) {
         let staking_pot = PotId::get().into_account_truncating();
-        Balances::resolve_creating(&staking_pot, amount);
+        let _ = Balances::resolve(&staking_pot, amount);
     }
 }
 
 pub struct FutureAuctionsPot;
-impl OnUnbalanced<NegativeImbalance> for FutureAuctionsPot {
-    fn on_nonzero_unbalanced(amount: NegativeImbalance) {
+impl OnUnbalanced<Credit<AccountId, Balances>> for FutureAuctionsPot
+{
+    fn on_nonzero_unbalanced(amount: Credit<AccountId, Balances>) {
         let future_auctions_pot = FutureAuctionsPalletId::get().into_account_truncating();
-        Balances::resolve_creating(&future_auctions_pot, amount);
-    }
+        let _ = Balances::resolve(&future_auctions_pot, amount);   
+    }  
 }
 
 pub struct DkgIncentivesPot;
-impl OnUnbalanced<NegativeImbalance> for DkgIncentivesPot {
-    fn on_nonzero_unbalanced(amount: NegativeImbalance) {
+impl OnUnbalanced<Credit<AccountId, Balances>> for DkgIncentivesPot
+{
+    fn on_nonzero_unbalanced(amount: Credit<AccountId, Balances>) {
         let dkg_incentives_pot = DkgIncentivesPalletId::get().into_account_truncating();
-        Balances::resolve_creating(&dkg_incentives_pot, amount);
+        let _ = Balances::resolve(&dkg_incentives_pot, amount);
     }
 }
 
-type NegativeImbalance = <Balances as PalletCurrency<AccountId>>::NegativeImbalance;
+pub struct TreasuryPot;
+impl OnUnbalanced<Credit<AccountId, Balances>> for TreasuryPot
+{
+    fn on_nonzero_unbalanced(amount: Credit<AccountId, Balances>) {
+        let treasury_port = TreasuryPalletId::get().into_account_truncating();
+        let _ = Balances::resolve(&treasury_port, amount);
+    }
+}
+
 
 pub struct DealWithFees;
-impl OnUnbalanced<NegativeImbalance> for DealWithFees {
+impl OnUnbalanced<Credit<AccountId, Balances>> for DealWithFees
+{
     // this is called for substrate-based transactions
-    fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
+    fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = Credit<AccountId, Balances>>) {
         if let Some(mut fees) = fees_then_tips.next() {
             if let Some(tips) = fees_then_tips.next() {
                 tips.merge_into(&mut fees);
@@ -374,7 +395,7 @@ impl OnUnbalanced<NegativeImbalance> for DealWithFees {
             let (dkg_incentives_fees, collators_incentives_fees) = split.0.ration(50, 50);
             let (future_auctions_fees, treasury_fees) = split.1.ration(75, 25);
 
-            Treasury::on_unbalanced(treasury_fees);
+            <TreasuryPot as OnUnbalanced<_>>::on_unbalanced(treasury_fees);
             <ToStakingPot as OnUnbalanced<_>>::on_unbalanced(collators_incentives_fees);
             <FutureAuctionsPot as OnUnbalanced<_>>::on_unbalanced(future_auctions_fees);
             <DkgIncentivesPot as OnUnbalanced<_>>::on_unbalanced(dkg_incentives_fees);
@@ -383,12 +404,13 @@ impl OnUnbalanced<NegativeImbalance> for DealWithFees {
 
     // this is called from pallet_evm for Ethereum-based transactions
     // (technically, it calls on_unbalanced, which calls this when non-zero)
-    fn on_nonzero_unbalanced(amount: NegativeImbalance) {
+    fn on_nonzero_unbalanced(amount: Credit<AccountId, Balances>) {
         let split = amount.ration(60, 40);
         let (dkg_incentives_fees, collators_incentives_fees) = split.0.ration(50, 50);
         let (future_auctions_fees, treasury_fees) = split.1.ration(75, 25);
 
-        Treasury::on_unbalanced(treasury_fees);
+
+        <TreasuryPot as OnUnbalanced<_>>::on_unbalanced(treasury_fees);
         <ToStakingPot as OnUnbalanced<_>>::on_unbalanced(collators_incentives_fees);
         <FutureAuctionsPot as OnUnbalanced<_>>::on_unbalanced(future_auctions_fees);
         <DkgIncentivesPot as OnUnbalanced<_>>::on_unbalanced(dkg_incentives_fees);
@@ -402,7 +424,7 @@ parameter_types! {
 
 impl pallet_transaction_payment::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
-    type OnChargeTransaction = pallet_transaction_payment::CurrencyAdapter<Balances, DealWithFees>;
+    type OnChargeTransaction = pallet_transaction_payment::FungibleAdapter<Balances, DealWithFees>;
     type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
     type WeightToFee = WeightToFee;
     type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
@@ -424,9 +446,17 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
     type OutboundXcmpMessageSource = XcmpQueue;
     type XcmpMessageHandler = XcmpQueue;
     type ReservedXcmpWeight = ReservedXcmpWeight;
-    type CheckAssociatedRelayNumber = RelayNumberStrictlyIncreases;
+    type CheckAssociatedRelayNumber = RelayNumberMonotonicallyIncreases;
+    type ConsensusHook = ConsensusHook;
     type WeightInfo = cumulus_pallet_parachain_system::weights::SubstrateWeight<Runtime>;
 }
+type ConsensusHook = cumulus_pallet_aura_ext::FixedVelocityConsensusHook<
+    Runtime,
+    RELAY_CHAIN_SLOT_DURATION_MILLIS,
+    BLOCK_PROCESSING_VELOCITY,
+    UNINCLUDED_SEGMENT_CAPACITY,
+>;
+
 
 impl parachain_info::Config for Runtime {}
 
@@ -489,6 +519,7 @@ impl pallet_message_queue::Config for Runtime {
     type HeapSize = MessageQueueHeapSize;
     type MaxStale = MessageQueueMaxStale;
     type ServiceWeight = MessageQueueServiceWeight;
+    type IdleMaxServiceWeight = MessageQueueServiceWeight;
 }
 
 parameter_types! {
@@ -532,6 +563,7 @@ impl pallet_aura::Config for Runtime {
     // Should be only enabled (`true`) when async backing is enabled
     // otherwise set to `false`
     type AllowMultipleBlocksPerSlot = ConstBool<false>;
+    type SlotDuration = ConstU64<SLOT_DURATION>;
 }
 
 parameter_types! {
@@ -686,30 +718,23 @@ impl pallet_base_fee::Config for Runtime {
     	type DefaultElasticity = DefaultElasticity;
 }
 
-type CurrencyAccountId<T> = <T as frame_system::Config>::AccountId;
+type FungibleAccountId<T> = <T as frame_system::Config>::AccountId;
 
-type BalanceFor<T> =
-			<<T as pallet_evm::Config>::Currency as PalletCurrency<CurrencyAccountId<T>>>::Balance;
-
-type PositiveImbalanceFor<T> =
-			<<T as pallet_evm::Config>::Currency as PalletCurrency<CurrencyAccountId<T>>>::PositiveImbalance;
-
-type NegativeImbalanceFor<T> =
-			<<T as pallet_evm::Config>::Currency as PalletCurrency<CurrencyAccountId<T>>>::NegativeImbalance;
+type BalanceFor<T> = 
+    <<T as pallet_evm::Config>::Currency as Inspect<FungibleAccountId<T>>>::Balance;
 
 pub struct OnChargeEVMTransaction<OU>(sp_std::marker::PhantomData<OU>);
 impl<T, OU> OnChargeEVMTransactionT<T> for OnChargeEVMTransaction<OU>
 where
 	T: pallet_evm::Config,
-	PositiveImbalanceFor<T>: Imbalance<BalanceFor<T>, Opposite = NegativeImbalanceFor<T>>,
-	NegativeImbalanceFor<T>: Imbalance<BalanceFor<T>, Opposite = PositiveImbalanceFor<T>>,
-	OU: OnUnbalanced<NegativeImbalanceFor<T>>,
+	T::Currency: Balanced<T::AccountId>,
+    OU: OnUnbalanced<Credit<T::AccountId, T::Currency>>,
 	U256: UniqueSaturatedInto<BalanceFor<T>>
 {
-	type LiquidityInfo = Option<NegativeImbalanceFor<T>>;
+	type LiquidityInfo = Option<Credit<T::AccountId, T::Currency>>;
 
 	fn withdraw_fee(who: &H160, fee: U256) -> Result<Self::LiquidityInfo, pallet_evm::Error<T>> {
-		EVMCurrencyAdapter::<<T as pallet_evm::Config>::Currency, ()>::withdraw_fee(who, fee)
+		EVMFungibleAdapter::<<T as pallet_evm::Config>::Currency, ()>::withdraw_fee(who, fee)
 	}
 
 	fn correct_and_deposit_fee(
@@ -718,8 +743,8 @@ where
 		base_fee: U256,
 		already_withdrawn: Self::LiquidityInfo,
 	) -> Self::LiquidityInfo {
-		<EVMCurrencyAdapter<<T as pallet_evm::Config>::Currency, OU> as OnChargeEVMTransactionT<
-			T,
+        <EVMFungibleAdapter<<T as pallet_evm::Config>::Currency, OU> as OnChargeEVMTransactionT<
+            T,
 		>>::correct_and_deposit_fee(who, corrected_fee, base_fee, already_withdrawn)
 	}
 
@@ -747,7 +772,7 @@ impl<F: FindAuthor<u32>> FindAuthor<H160> for FindAuthorTruncated<F> {
         I: 'a + IntoIterator<Item = (ConsensusEngineId, &'a [u8])>,
     {
         if let Some(author_index) = F::find_author(digests) {
-            let authority_id = Aura::authorities()[author_index as usize].clone();
+            let authority_id = pallet_aura::Authorities::<Runtime>::get()[author_index as usize].clone();
             return Some(H160::from_slice(&authority_id.encode()[4..24]));
         }
 
@@ -1108,6 +1133,7 @@ impl pallet_proxy::Config for Runtime {
 	type AnnouncementDepositFactor = AnnouncementDepositFactor;
 }
 
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
     pub struct Runtime
@@ -1157,6 +1183,7 @@ construct_runtime!(
         Council: pallet_collective::<Instance1> = 62,
         Democracy: pallet_democracy = 63,
         Identity: pallet_identity = 64,
+
     }
 );
 
@@ -1302,11 +1329,20 @@ pub type Executive = frame_executive::Executive<
 impl_runtime_apis! {
     impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
         fn slot_duration() -> sp_consensus_aura::SlotDuration {
-            sp_consensus_aura::SlotDuration::from_millis(Aura::slot_duration())
+            sp_consensus_aura::SlotDuration::from_millis(SLOT_DURATION)
         }
 
         fn authorities() -> Vec<AuraId> {
-            Aura::authorities().into_inner()
+            pallet_aura::Authorities::<Runtime>::get().into_inner()
+        }
+    }
+
+    impl cumulus_primitives_aura::AuraUnincludedSegmentApi<Block> for Runtime {
+        fn can_build_upon(
+            included_hash: <Block as BlockT>::Hash,
+            slot: cumulus_primitives_aura::Slot,
+        ) -> bool {
+            ConsensusHook::can_build_upon(included_hash, slot)
         }
     }
 
@@ -1635,12 +1671,16 @@ impl_runtime_apis! {
     }
 
     impl sp_genesis_builder::GenesisBuilder<Block> for Runtime {
-        fn create_default_config() -> Vec<u8> {
-            create_default_config::<RuntimeGenesisConfig>()
+        fn build_state(config: Vec<u8>) -> sp_genesis_builder::Result {
+            build_state::<RuntimeGenesisConfig>(config)
         }
 
-        fn build_config(config: Vec<u8>) -> sp_genesis_builder::Result {
-            build_config::<RuntimeGenesisConfig>(config)
+        fn get_preset(id: &Option<sp_genesis_builder::PresetId>) -> Option<Vec<u8>> {
+            get_preset::<RuntimeGenesisConfig>(id, |_| None)
+        }
+
+        fn preset_names() -> Vec<sp_genesis_builder::PresetId> {
+            vec![]
         }
     }
 
@@ -1682,32 +1722,7 @@ impl_runtime_apis! {
     }
 }
 
-#[allow(dead_code)]
-struct CheckInherents;
-
-impl cumulus_pallet_parachain_system::CheckInherents<Block> for CheckInherents {
-    fn check_inherents(
-        block: &Block,
-        relay_state_proof: &cumulus_pallet_parachain_system::RelayChainStateProof,
-    ) -> sp_inherents::CheckInherentsResult {
-        let relay_chain_slot = relay_state_proof
-            .read_slot()
-            .expect("Could not read the relay chain slot from the proof");
-
-        let inherent_data =
-            cumulus_primitives_timestamp::InherentDataProvider::from_relay_chain_slot_and_duration(
-                relay_chain_slot,
-                sp_std::time::Duration::from_secs(6),
-            )
-            .create_inherent_data()
-            .expect("Could not create the timestamp inherent data");
-
-        inherent_data.check_extrinsics(block)
-    }
-}
-
 cumulus_pallet_parachain_system::register_validate_block! {
     Runtime = Runtime,
     BlockExecutor = cumulus_pallet_aura_ext::BlockExecutor::<Runtime, Executive>,
-    CheckInherents = CheckInherents,
 }

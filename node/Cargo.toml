@@ -1,6 +1,6 @@
 [package]
 name = "neuroweb-node"
-version = "1.4.0"
+version = "1.5.0"
 authors = ["TraceLabs"]
 description = "NeuroWeb - Cumulus FRAME-based Substrate Node"
 license = "GPL-3.0-only"
@@ -61,7 +61,6 @@ sp-runtime = { workspace = true }
 sp-timestamp = { workspace = true }
 substrate-frame-rpc-system = { workspace = true }
 substrate-prometheus-endpoint = { workspace = true }
-try-runtime-cli = { workspace = true }
 
 # Polkadot
 polkadot-cli = { workspace = true }
@@ -97,11 +96,9 @@ substrate-build-script-utils = { workspace = true }
 [features]
 default = ["fc-rpc/rpc-binary-search-estimate"]
 runtime-benchmarks = [
-	"try-runtime-cli/try-runtime",
 	"neuroweb-runtime/runtime-benchmarks",
 	"polkadot-cli/runtime-benchmarks",
 ]
 try-runtime = [
-	"try-runtime-cli/try-runtime",
 	"neuroweb-runtime/try-runtime",
 ]
