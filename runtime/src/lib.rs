@@ -309,11 +309,11 @@ impl frame_system::Config for Runtime {
 impl pallet_timestamp::Config for Runtime {
     /// A timestamp: milliseconds since the unix epoch.
     type Moment = u64;
-    type OnTimestampSet = ();
-    #[cfg(feature = "experimental")]
+    type OnTimestampSet = Aura;
+    // #[cfg(feature = "experimental")]
     type MinimumPeriod = ConstU64<0>;
-    #[cfg(not(feature = "experimental"))]
-    type MinimumPeriod = ConstU64<{ SLOT_DURATION / 2 }>;
+    // #[cfg(not(feature = "experimental"))]
+    // type MinimumPeriod = ConstU64<{ SLOT_DURATION / 2 }>;
     type WeightInfo = pallet_timestamp::weights::SubstrateWeight<Runtime>;
 }
 
