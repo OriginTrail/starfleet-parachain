@@ -6615,7 +6615,7 @@ dependencies = [
 
 [[package]]
 name = "neuroweb-node"
-version = "1.11.0"
+version = "1.5.1"
 dependencies = [
  "clap",
  "cumulus-client-cli",
@@ -6687,7 +6687,7 @@ dependencies = [
 
 [[package]]
 name = "neuroweb-runtime"
-version = "1.11.0"
+version = "1.5.1"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -6733,7 +6733,6 @@ dependencies = [
  "pallet-proxy",
  "pallet-scheduler",
  "pallet-session 28.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.11.0)",
- "pallet-sudo",
  "pallet-timestamp 27.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.11.0)",
  "pallet-transaction-payment 28.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.11.0)",
  "pallet-transaction-payment-rpc-runtime-api 28.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.11.0)",

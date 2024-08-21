@@ -784,7 +784,7 @@ impl<F: FindAuthor<u32>> FindAuthor<H160> for FindAuthorTruncated<F> {
 }
 
 parameter_types! {
-    pub const ChainId: u64 = 2160;
+    pub const ChainId: u64 = 20430;
     pub BlockGasLimit: U256 = U256::from(NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT.ref_time() / WEIGHT_PER_GAS);
     pub PrecompilesValue: FrontierPrecompiles<Runtime> = FrontierPrecompiles::<_>::new();
     pub WeightPerGas: Weight = Weight::from_parts(WEIGHT_PER_GAS, 0);
@@ -1136,12 +1136,6 @@ impl pallet_proxy::Config for Runtime {
 	type AnnouncementDepositFactor = AnnouncementDepositFactor;
 }
 
-impl pallet_sudo::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type RuntimeCall = RuntimeCall;
-    type WeightInfo = pallet_sudo::weights::SubstrateWeight<Runtime>;
-}
-
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
     pub struct Runtime
@@ -1192,8 +1186,6 @@ construct_runtime!(
         Democracy: pallet_democracy = 63,
         Identity: pallet_identity = 64,
 
-        // Temporary.
-        Sudo: pallet_sudo = 255,
     }
 );
 
