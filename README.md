@@ -3,14 +3,13 @@
 <div align="center">
   <img src="https://140069760-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2FqMnH71Mmd7Au6HK5UAji%2Fuploads%2FEmgmn8pgCqu9eJaQPNSO%2FNeuroWeb%20X%20visual%20(1).jpg?alt=media&token=320f5009-0932-4ecc-a5a6-3bbb7a56cf45">
 
-
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Substrate version](https://img.shields.io/badge/Substrate-3.0.0-brightgreen?logo=Parity%20Substrate)](https://substrate.io)
 [![Twitter URL](https://img.shields.io/twitter/follow/NeuroWebAI?style=social)](https://twitter.com/NeuroWebAI)
 [![Telegram](https://img.shields.io/endpoint?color=neon&style=flat-square&url=https%3A%2F%2Ftg.sumanjay.workers.dev%2Forigintrail)](https://t.me/origintrail)
 [![Medium](https://badgen.net/badge/icon/medium?icon=medium&label)](https://medium.com/origintrail)
 [![Discord](https://img.shields.io/badge/Discord-gray?logo=discord)](https://discord.gg/FCgYk2S)
-  
+
 </div>
 
 NeuroWeb Network is a decentralized Artificial Intelligence blockchain designed to incentivise knowledge creation, connectivity and sharing through **Knowledge Mining**. It's utility token NEURO is designed to fuel the AI knowledge economy, rewarding relevant knowledge contributions to the **OriginTrail Decentralized Knowledge Graph**.
@@ -48,7 +47,7 @@ To run a full network with multiple NeuroWeb nodes (collators and non-collators)
 #### Run A Relay Chain
 
 To start a relay chain we recommend reading and following instructions in [Cumulus Workshop](https://docs.substrate.io/tutorials/build-a-parachain/prepare-a-local-relay-chain/).
-NeuroWeb is currently compatible with Polkadot v0.9.40 version.
+NeuroWeb is currently compatible with Polkadot v1.11.0 version.
 
 #### Parachain Nodes (Collators)
 
@@ -98,10 +97,13 @@ Ensure you set the `ParaId to 2000` and the `parachain: Bool to Yes`.
 ### Containerize
 
 #### Build
+
 ```shell
 docker build -t origintrail-parachain .
 ```
+
 #### Run
+
 ```shell
 docker run -it -p 30333:30333 -p 9933:9933 -p 9944:9944 -p 9615:9615 -v /data:/data origintrail-parachain:latest\
   --base-path=/data --rpc-external --ws-external\

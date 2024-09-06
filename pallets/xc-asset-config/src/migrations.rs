@@ -1,6 +1,6 @@
 use super::*;
 use frame_support::traits::OnRuntimeUpgrade;
-use frame_support::{dispatch::GetStorageVersion, log, pallet_prelude::*, traits::Get};
+use frame_support::{pallet_prelude::*, traits::Get};
 use sp_std::{marker::PhantomData, vec::Vec};
 use xcm::IntoVersion;
 
