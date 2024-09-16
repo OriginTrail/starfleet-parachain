@@ -1,6 +1,6 @@
 [package]
 name = "neuroweb-runtime"
-version = "1.4.0"
+version = "1.5.1"
 authors = ["TraceLabs"]
 description = "NeuroWeb Runtime - Cumulus FRAME-based Substrate Runtime"
 license = "GPL-3.0-only"
@@ -21,7 +21,6 @@ log = { workspace = true }
 scale-info = { workspace = true }
 smallvec = { workspace = true }
 serde = { workspace = true }
-
 
 # Substrate
 frame-benchmarking = { workspace = true, optional = true }
@@ -72,9 +71,10 @@ xcm-executor = { workspace = true }
 # Cumulus
 cumulus-pallet-aura-ext = { workspace = true }
 cumulus-pallet-dmp-queue = { workspace = true }
-cumulus-pallet-parachain-system = { workspace = true }
+cumulus-pallet-parachain-system = { workspace = true, features = ["parameterized-consensus-hook"] }
 cumulus-pallet-xcm = { workspace = true }
 cumulus-pallet-xcmp-queue = { workspace = true }
+cumulus-primitives-aura = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 cumulus-primitives-storage-weight-reclaim = { workspace = true }
 cumulus-primitives-timestamp = { workspace = true }
@@ -112,6 +112,7 @@ std = [
 	"cumulus-pallet-parachain-system/std",
 	"cumulus-pallet-xcm/std",
 	"cumulus-pallet-xcmp-queue/std",
+	"cumulus-primitives-aura/std",
 	"cumulus-primitives-core/std",
 	"cumulus-primitives-timestamp/std",
 	"cumulus-primitives-utility/std",

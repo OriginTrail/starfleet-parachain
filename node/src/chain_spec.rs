@@ -200,10 +200,6 @@ fn testnet_genesis(
 			safe_xcm_version: Some(SAFE_XCM_VERSION),
 			..Default::default()
 		},
-		// sudo: SudoConfig {
-		// 	// Assign network admin rights.
-		// 	key: Some(root_key),
-		// },
 		vesting: Default::default(),
 		treasury: Default::default(),
 		evm: EVMConfig {
