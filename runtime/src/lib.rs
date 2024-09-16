@@ -1466,6 +1466,9 @@ impl_runtime_apis! {
 				None
 			};
 
+            let is_transactional = false;
+            let validate = true;
+
             // Estimated encoded transaction size must be based on the heaviest transaction
             // type (EIP1559Transaction) to be compatible with all transaction types.
             let mut estimated_transaction_len = data.len() +
@@ -1516,8 +1519,8 @@ impl_runtime_apis! {
 				max_priority_fee_per_gas,
 				nonce,
 				access_list.unwrap_or_default(),
-				false,
-				true,
+				is_transactional,
+				validate,
 				weight_limit,
 				proof_size_base_cost,
 				config.as_ref().unwrap_or(<Runtime as pallet_evm::Config>::config()),
@@ -1545,6 +1548,8 @@ impl_runtime_apis! {
 				None
 			};
 
+            let is_transactional = false;
+            let validate = true;
 
 			let mut estimated_transaction_len = data.len() +
 				// from: 20
@@ -1594,8 +1599,8 @@ impl_runtime_apis! {
 				max_priority_fee_per_gas,
 				nonce,
 				access_list.unwrap_or_default(),
-				false,
-				true,
+                is_transactional,
+                validate,
 				weight_limit,
 				proof_size_base_cost,
 				config.as_ref().unwrap_or(<Runtime as pallet_evm::Config>::config()),
