@@ -50,7 +50,6 @@ To start a relay chain we recommend reading and following instructions in [Cumul
 
 NeuroWeb is currently compatible with Polkadot v1.11.0 version.
 
-
 #### Parachain Nodes (Collators)
 
 From the OriginTrail parachain working directory:
