@@ -18,7 +18,7 @@ use sp_runtime::{
     traits::{
         AccountIdConversion, IdentityLookup, BlakeTwo256, Block as BlockT,
         ConvertInto, DispatchInfoOf, Dispatchable, IdentifyAccount, 
-        PostDispatchInfoOf, UniqueSaturatedInto, Verify,
+        PostDispatchInfoOf, UniqueSaturatedInto, Verify, One
     },
     transaction_validity::{
         TransactionSource, TransactionValidity, TransactionValidityError
@@ -57,6 +57,7 @@ use frame_system::{
 };
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
+use pallet_transaction_payment::{ConstFeeMultiplier, Multiplier};
 use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 use xcm_config::{XcmOriginToTransactDispatchOrigin};
 
@@ -64,7 +65,7 @@ use xcm_config::{XcmOriginToTransactDispatchOrigin};
 pub use sp_runtime::BuildStorage;
 
 // Polkadot Imports
-use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
+use polkadot_runtime_common::BlockHashCount;
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use parachains_common::message_queue::{NarrowOriginToSibling, ParaIdToSibling};
 use polkadot_runtime_common::xcm_sender::NoPriceForMessageDelivery;
@@ -141,7 +142,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("origintrail-parachain"),
     impl_name: create_runtime_str!("neuroweb"),
     authoring_version: 1,
-    spec_version: 136,
+    spec_version: 137,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -424,6 +425,7 @@ impl OnUnbalanced<Credit<AccountId, Balances>> for DealWithFees
 parameter_types! {
     /// Relay Chain `TransactionByteFee` / 10
     pub const TransactionByteFee: Balance = 10 * MICROOTP;
+    pub FeeMultiplier: Multiplier = Multiplier::one();
 }
 
 impl pallet_transaction_payment::Config for Runtime {
@@ -431,7 +433,7 @@ impl pallet_transaction_payment::Config for Runtime {
     type OnChargeTransaction = pallet_transaction_payment::FungibleAdapter<Balances, DealWithFees>;
     type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
     type WeightToFee = WeightToFee;
-    type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
+    type FeeMultiplierUpdate = ConstFeeMultiplier<FeeMultiplier>;
     type OperationalFeeMultiplier = ConstU8<5>;
 }
 
@@ -1765,7 +1767,7 @@ impl_runtime_apis! {
         fn get_preset(id: &Option<sp_genesis_builder::PresetId>) -> Option<Vec<u8>> {
             get_preset::<RuntimeGenesisConfig>(id, |_| None)
         }
-
+      
         fn preset_names() -> Vec<sp_genesis_builder::PresetId> {
             vec![]
         }
