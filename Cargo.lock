@@ -6701,7 +6701,7 @@ dependencies = [
 
 [[package]]
 name = "neuroweb-runtime"
-version = "1.5.2"
+version = "1.5.3"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",

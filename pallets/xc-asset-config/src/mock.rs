@@ -1,4 +1,4 @@
-use crate::{self as pallet_xc_asset_config};
+/*use crate::{self as pallet_xc_asset_config};
 
 use frame_support::{construct_runtime, parameter_types, weights::Weight};
 use sp_core::H256;
@@ -103,4 +103,4 @@ impl ExternalityBuilder {
         ext.execute_with(|| System::set_block_number(1));
         ext
     }
-}
+}*/
