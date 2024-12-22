@@ -21,6 +21,7 @@ codec = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 jsonrpsee = { workspace = true }
+itertools = { workspace = true }
 
 # Local
 neuroweb-runtime = { workspace = true }
